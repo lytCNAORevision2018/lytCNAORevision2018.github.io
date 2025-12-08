@@ -1,9 +1,9 @@
 ---
-permalink: /research-competitions/
+permalink: /pages/research-competitions/
 title: "个人科研竞赛项目"
 author_profile: true
 redirect_from: 
-  - /research-competitions/
+- /pages/research-competitions/
 ---
 
 # 个人科研项目

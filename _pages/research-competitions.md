@@ -1,7 +1,7 @@
 ---
 permalink: /research-competitions/
 title: "个人科研竞赛项目"
-author_profile: false
+author_profile: true
 layout : archive
 
 ---
@@ -11,3 +11,6 @@ layout : archive
 # 个人科研成果
 
 # 个人实践项目
+
+**本页面内容待更新。** 2025年12月8日
+

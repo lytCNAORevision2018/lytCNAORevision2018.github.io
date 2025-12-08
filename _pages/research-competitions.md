@@ -2,8 +2,8 @@
 permalink: /research-competitions/
 title: "个人科研竞赛项目"
 author_profile: false
-redirect_from: 
-- /research-competitions/
+layout : archive
+
 ---
 
 # 个人科研项目

@@ -1,7 +1,7 @@
 ---
 permalink: /talks-presentations/
 title: "分享、汇报与讲座"
-author_profile: false
+author_profile: true
 layout : archive
 
 ---

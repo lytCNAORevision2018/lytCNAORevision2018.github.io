@@ -13,7 +13,9 @@ main:
 
 #  - title: "Publications"
 #   url: /publications/
-
+  - title: "实习实践"
+    url: /interships/
+    
   - title: "科研竞赛"
     url: /research-competitions/
     

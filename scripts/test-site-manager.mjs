@@ -347,6 +347,35 @@ async function testMediaAndCandidateTransactions(root) {
     const preview = await fetch(`${manager.baseUrl}/preview${unsavedPage.replace(/^\/images/, "")}?token=${encodeURIComponent(manager.token)}`);
     assert.equal(preview.status, 200, "头像上传后 PDF 页面仍应可预览");
 
+    const beforeWebsiteAvatar = await manager.request("/api/content");
+    assert.ok(beforeWebsiteAvatar.payload.websiteProfileFields.some((field) => field.key === "name"));
+    assert.ok(beforeWebsiteAvatar.payload.homeDefaults.some((section) => section.key === "awards"));
+    assert.equal(beforeWebsiteAvatar.payload.websiteTextDefaults.footer.updated.mode, "publish");
+    assert.equal(beforeWebsiteAvatar.payload.websiteTextDefaults.misc.sitemap.label, "站点地图");
+    const websiteAvatar = await manager.request("/api/avatar", {
+      method: "POST",
+      body: { scope: "website", mimeType: "image/png", data: onePixelPng.toString("base64"), baseRevision: beforeWebsiteAvatar.payload.revision }
+    });
+    assert.equal(websiteAvatar.status, 200, JSON.stringify(websiteAvatar.payload));
+    assert.equal(websiteAvatar.payload.avatar, "website-profile.png");
+    assert.ok(await exists(join(scenario.repository, "images", "profile-user.png")), "网站头像不得删除简历头像");
+    const websitePreview = await fetch(`${manager.baseUrl}/preview/avatar/website?token=${encodeURIComponent(manager.token)}`);
+    assert.equal(websitePreview.status, 200, "独立头像在发布前即可预览");
+    assert.equal((await fetch(`${manager.baseUrl}/preview/avatar/website`)).status, 401, "头像预览需要有效会话");
+    const websiteHead = await fetch(`${manager.baseUrl}/preview/avatar/website?token=${encodeURIComponent(manager.token)}`, { method: "HEAD" });
+    assert.equal(websiteHead.status, 200);
+    assert.equal((await websiteHead.arrayBuffer()).byteLength, 0);
+    assert.equal((await fetch(`${manager.baseUrl}/preview/avatar/website?token=${encodeURIComponent(manager.token)}`, { method: "POST" })).status, 405);
+    const afterWebsiteAvatar = await manager.request("/api/content");
+    assert.equal(afterWebsiteAvatar.payload.content.profile.avatar, "profile-user.png");
+    assert.equal(afterWebsiteAvatar.payload.content.website.profile.avatar, "website-profile.png");
+    const removedWebsiteAvatar = await manager.request("/api/avatar/remove", {
+      method: "POST", body: { scope: "website", baseRevision: afterWebsiteAvatar.payload.revision }
+    });
+    assert.equal(removedWebsiteAvatar.status, 200, JSON.stringify(removedWebsiteAvatar.payload));
+    assert.equal(await exists(join(scenario.repository, "images", "website-profile.png")), false);
+    assert.ok(await exists(join(scenario.repository, "images", "profile-user.png")), "移除独立头像后，简历头像仍应保留");
+
     const working = await manager.request("/api/content");
     assert.equal(working.status, 200, JSON.stringify(working.payload));
     const unpublished = structuredClone(working.payload.content);

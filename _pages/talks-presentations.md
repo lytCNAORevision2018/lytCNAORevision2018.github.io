@@ -7,4 +7,5 @@ redirect_from:
   - /talks-presentations/
 ---
 {% assign data = site.data.site_content %}
+{% include content/page-intro.html key="talks" %}
 {% include content/section.html id="talks" title="全部分享" items=data.talks show_documents=true %}

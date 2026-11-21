@@ -7,6 +7,7 @@ redirect_from:
   - /resume/
 ---
 {% assign data = site.data.site_content %}
+{% include content/page-intro.html key="cv" %}
 
 <div class="cv-summary">
   <p class="cv-summary__name">{{ data.profile.name | escape }}{% if data.profile.nameEn %} / {{ data.profile.nameEn | escape }}{% endif %}</p>

@@ -19,6 +19,8 @@ import {
   contentRevision,
   parseTalkDocumentPage,
   sectionDefinitions,
+  websiteProfileFields,
+  websiteTextDefaults,
   toPublishedContent,
   validateContent
 } from "./lib/content.mjs";
@@ -37,6 +39,9 @@ const publishTalkTemporaryRoot = resolve(localStateDirectory, "publish-talk-docu
 const publicTalkDocumentDirectory = resolve(repositoryRoot, "images", "talk-documents");
 const profileAvatarNames = ["profile-user.jpg", "profile-user.jpeg", "profile-user.png", "profile-user.webp"];
 const profileAvatarPaths = profileAvatarNames.map((name) => resolve(repositoryRoot, "images", name));
+const websiteAvatarNames = ["website-profile.jpg", "website-profile.jpeg", "website-profile.png", "website-profile.webp"];
+const websiteAvatarPaths = websiteAvatarNames.map((name) => resolve(repositoryRoot, "images", name));
+const allAvatarPaths = [...profileAvatarPaths, ...websiteAvatarPaths];
 const host = "127.0.0.1";
 const port = Number(process.env.SITE_MANAGER_PORT || 4173);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("SITE_MANAGER_PORT 必须是 1024 到 65535 之间的整数。");
@@ -161,7 +166,8 @@ const dailyManagedPaths = [
   "images/profile-user.jpeg",
   "images/profile-user.png",
   "images/profile-user.webp",
-  "images/talk-documents"
+  "images/talk-documents",
+  ...websiteAvatarNames.map((name) => `images/${name}`)
 ];
 
 const mimeTypes = {
@@ -479,13 +485,22 @@ async function syncPublishedTalkDocuments(content) {
 }
 
 async function syncPublishedAvatar(content) {
-  const avatarName = content.profile?.avatar || "";
-  if (profileAvatarNames.includes(avatarName) && !(await exists(resolve(repositoryRoot, "images", avatarName)))) {
-    throw clientError(`头像文件不存在：images/${avatarName}`);
+  const references = new Set([content.profile?.avatar, content.website?.profile?.avatar]);
+  for (const avatarPath of allAvatarPaths) {
+    if (references.has(basename(avatarPath))) {
+      if (!(await exists(avatarPath))) throw clientError(`头像文件不存在：images/${basename(avatarPath)}`);
+    } else await rm(avatarPath, { force: true });
   }
-  for (const avatarPath of profileAvatarPaths) {
-    if (basename(avatarPath) !== avatarName) await rm(avatarPath, { force: true });
+}
+
+function avatarTarget(content, scope) {
+  if (scope !== undefined && !["profile", "website"].includes(scope)) throw clientError("头像用途不正确。");
+  if (scope === "website") {
+    content.website ||= {};
+    content.website.profile ||= {};
+    return { profile: content.website.profile, prefix: "website-profile", paths: websiteAvatarPaths };
   }
+  return { profile: content.profile, prefix: "profile-user", paths: profileAvatarPaths };
 }
 
 async function validateTalkDocumentFiles(content) {
@@ -1095,6 +1110,7 @@ function externalReferences(content) {
   add(content.meta?.siteUrl, "站点地址");
   for (const [name, url] of Object.entries(content.profile?.links || {})) add(url, `个人链接 ${name}`);
   if (/^https?:\/\//i.test(content.profile?.avatar || "")) add(content.profile.avatar, "头像");
+  add(content.website?.profile?.avatar, "网站独立头像");
   for (const section of sectionDefinitions) {
     for (const item of content[section.key] || []) {
       for (const link of item.links || []) add(link.url, `${section.label}“${item.title}”`);
@@ -1206,7 +1222,7 @@ async function snapshotPublishState() {
   const hadContent = await exists(publishedContentPath);
   const hadTalkDocuments = await exists(publicTalkDocumentDirectory);
   const { stdout: indexTreeOutput } = await git(["write-tree"]);
-  const avatarSnapshot = await snapshotOptionalFiles(profileAvatarPaths);
+  const avatarSnapshot = await snapshotOptionalFiles(allAvatarPaths);
   await mkdir(root, { recursive: true });
   if (hadContent) await copyFile(publishedContentPath, contentBackup);
   if (hadTalkDocuments) await copyDirectory(publicTalkDocumentDirectory, talkDocumentsBackup);
@@ -1599,6 +1615,9 @@ async function handleApi(request, response, pathname) {
       ok: true,
       ...working,
       sections: sectionDefinitions,
+      websiteProfileFields,
+      websiteTextDefaults,
+      homeDefaults: await readJson(resolve(repositoryRoot, "_data", "home_sections.json")),
       git: await gitStatus(),
       pdfTools: await getPdfToolStatus(),
       repositoryRoot,
@@ -1634,20 +1653,24 @@ async function handleApi(request, response, pathname) {
       if ((extension === "png" && !isPng) || (extension === "jpg" && !isJpeg) || (extension === "webp" && !isWebp)) {
         throw clientError("图片内容与文件类型不一致。");
       }
-      const avatarName = `profile-user.${extension}`;
+      const target = avatarTarget(current.content, body.scope);
+      const avatarName = `${target.prefix}.${extension}`;
       const avatarPath = resolve(repositoryRoot, "images", avatarName);
-      const rollbackSnapshot = await snapshotOptionalFiles([draftPath, ...profileAvatarPaths]);
-      const previousAvatar = current.content.profile.avatar;
+      const rollbackSnapshot = await snapshotOptionalFiles([draftPath, ...target.paths]);
+      const previousAvatar = target.profile.avatar;
       try {
         await atomicWrite(avatarPath, bytes);
-        current.content.profile.avatar = avatarName;
+        target.profile.avatar = avatarName;
         const saved = await saveDraft(current.content, current.revision, current.baseCommit);
-        for (const oldAvatarPath of profileAvatarPaths) {
-          if (oldAvatarPath !== avatarPath) await rm(oldAvatarPath, { force: true });
+        for (const oldAvatarPath of target.paths) {
+          const usedElsewhere = body.scope === "website"
+            ? current.content.profile.avatar === basename(oldAvatarPath)
+            : current.content.website?.profile?.avatar === basename(oldAvatarPath);
+          if (oldAvatarPath !== avatarPath && !usedElsewhere) await rm(oldAvatarPath, { force: true });
         }
         return { ...saved, avatar: avatarName };
       } catch (error) {
-        current.content.profile.avatar = previousAvatar;
+        target.profile.avatar = previousAvatar;
         try {
           await restoreOptionalFiles(rollbackSnapshot);
         } catch (rollbackError) {
@@ -1669,15 +1692,21 @@ async function handleApi(request, response, pathname) {
         error.statusCode = 409;
         throw error;
       }
-      const rollbackSnapshot = await snapshotOptionalFiles([draftPath, ...profileAvatarPaths]);
-      const previousAvatar = current.content.profile.avatar;
+      const target = avatarTarget(current.content, body.scope);
+      const rollbackSnapshot = await snapshotOptionalFiles([draftPath, ...target.paths]);
+      const previousAvatar = target.profile.avatar;
       try {
-        current.content.profile.avatar = "";
+        target.profile.avatar = "";
         const saved = await saveDraft(current.content, current.revision, current.baseCommit);
-        for (const avatarPath of profileAvatarPaths) await rm(avatarPath, { force: true });
+        for (const avatarPath of target.paths) {
+          const usedElsewhere = body.scope === "website"
+            ? current.content.profile.avatar === basename(avatarPath)
+            : current.content.website?.profile?.avatar === basename(avatarPath);
+          if (!usedElsewhere) await rm(avatarPath, { force: true });
+        }
         return { ...saved, avatar: "" };
       } catch (error) {
-        current.content.profile.avatar = previousAvatar;
+        target.profile.avatar = previousAvatar;
         try {
           await restoreOptionalFiles(rollbackSnapshot);
         } catch (rollbackError) {
@@ -1780,6 +1809,21 @@ const server = http.createServer(async (request, response) => {
   try {
     if (url.pathname.startsWith("/api/")) {
       await handleApi(request, response, url.pathname);
+    } else if (/^\/preview\/avatar\/(profile|website)$/.test(url.pathname)) {
+      if (!["GET", "HEAD"].includes(request.method)) {
+        response.setHeader("Allow", "GET, HEAD");
+        errorResponse(response, 405, "头像预览仅支持 GET 或 HEAD 请求。");
+        return;
+      }
+      if (url.searchParams.get("token") !== token) throw clientError("预览会话已失效。", 401);
+      const current = await readWorkingContent();
+      const avatar = url.pathname.endsWith("/website")
+        ? (current.content.website?.profile?.avatar ?? current.content.profile.avatar)
+        : current.content.profile.avatar;
+      if (!avatar || !/^[a-z0-9][a-z0-9._-]*\.(?:jpe?g|png|webp)$/i.test(avatar)) throw clientError("没有本地头像。", 404);
+      const bytes = await readFile(resolve(repositoryRoot, "images", avatar));
+      response.writeHead(200, { "Content-Type": mimeTypes[extname(avatar).toLowerCase()] || "image/jpeg", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" });
+      response.end(request.method === "HEAD" ? undefined : bytes);
     } else if (url.pathname.startsWith("/preview/talk-documents/")) {
       await serveTalkDocumentPreview(request, response, url);
     } else if (request.method === "GET" || request.method === "HEAD") {

@@ -1,0 +1,27 @@
+{% assign profile = site.data.site_content.profile %}
+{% assign website_profile = site.data.site_content.website.profile %}
+{% if page.url == "/cv/" %}{% assign website_profile = nil %}{% endif %}
+{% assign profile_name = profile.name %}
+{% assign profile_name_en = profile.nameEn %}
+{% assign profile_preferred_name = profile.preferredName %}
+{% assign profile_pronouns = profile.pronouns %}
+{% assign profile_headline = profile.headline %}
+{% assign profile_summary = profile.summary %}
+{% assign profile_motto = profile.motto %}
+{% assign profile_institution = profile.institution %}
+{% assign profile_location = profile.location %}
+{% assign profile_email = profile.email %}
+{% assign profile_avatar = profile.avatar %}
+{% assign profile_interests = profile.researchInterests %}
+{% if website_profile.name != nil %}{% assign profile_name = website_profile.name %}{% endif %}
+{% if website_profile.nameEn != nil %}{% assign profile_name_en = website_profile.nameEn %}{% endif %}
+{% if website_profile.preferredName != nil %}{% assign profile_preferred_name = website_profile.preferredName %}{% endif %}
+{% if website_profile.pronouns != nil %}{% assign profile_pronouns = website_profile.pronouns %}{% endif %}
+{% if website_profile.headline != nil %}{% assign profile_headline = website_profile.headline %}{% endif %}
+{% if website_profile.summary != nil %}{% assign profile_summary = website_profile.summary %}{% endif %}
+{% if website_profile.motto != nil %}{% assign profile_motto = website_profile.motto %}{% endif %}
+{% if website_profile.institution != nil %}{% assign profile_institution = website_profile.institution %}{% endif %}
+{% if website_profile.location != nil %}{% assign profile_location = website_profile.location %}{% endif %}
+{% if website_profile.email != nil %}{% assign profile_email = website_profile.email %}{% endif %}
+{% if website_profile.avatar != nil %}{% assign profile_avatar = website_profile.avatar %}{% endif %}
+{% if website_profile.researchInterests != nil %}{% assign profile_interests = website_profile.researchInterests %}{% endif %}

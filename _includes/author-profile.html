@@ -1,56 +1,57 @@
 {% include base_path %}
-{% assign profile = site.data.site_content.profile %}
+{% include resolved-profile.html %}
 
 <div itemscope itemtype="https://schema.org/Person">
   <div class="author__avatar">
-    {% if profile.avatar %}
-      {% if profile.avatar contains "://" %}
-        <img src="{{ profile.avatar | escape }}" alt="{{ profile.name | escape }}" fetchpriority="high" itemprop="image" />
+    {% if profile_avatar and profile_avatar != "" %}
+      {% if profile_avatar contains "://" %}
+        <img src="{{ profile_avatar | escape }}" alt="{{ profile_name | escape }}" fetchpriority="high" itemprop="image" />
       {% else %}
-        <img src="{{ profile.avatar | prepend: "/images/" | prepend: base_path }}" alt="{{ profile.name | escape }}" fetchpriority="high" itemprop="image" />
+        <img src="{{ profile_avatar | prepend: "/images/" | prepend: base_path }}" alt="{{ profile_name | escape }}" fetchpriority="high" itemprop="image" />
       {% endif %}
     {% else %}
-      <div class="author__avatar-fallback" role="img" aria-label="{{ profile.name | escape }}">{{ profile.name | slice: 0 }}</div>
+      <div class="author__avatar-fallback" role="img" aria-label="{{ profile_name | escape }}">{{ profile_name | slice: 0 }}</div>
     {% endif %}
   </div>
 
   <div class="author__content">
     <h3 class="author__name" itemprop="name">
-      {{ profile.name | escape }}
-      {% if profile.nameEn %}<span>{{ profile.nameEn | escape }}</span>{% endif %}
+      {{ profile_name | escape }}
+      {% if profile_name_en and profile_name_en != "" %}<span>{{ profile_name_en | escape }}</span>{% endif %}
     </h3>
-    {% if profile.pronouns %}<p class="author__pronouns">{{ profile.pronouns | escape }}</p>{% endif %}
-    {% if profile.headline %}<p class="author__bio" itemprop="jobTitle">{{ profile.headline | escape }}</p>{% endif %}
+    {% if profile_pronouns and profile_pronouns != "" %}<p class="author__pronouns">{{ profile_pronouns | escape }}</p>{% endif %}
+    {% if profile_headline and profile_headline != "" %}<p class="author__bio" itemprop="jobTitle">{{ profile_headline | escape }}</p>{% endif %}
   </div>
 
   <div class="author__urls-wrapper">
-    <button type="button" class="btn btn--inverse">联系方式</button>
+    {% assign contact_button = site.data.site_content.website.text.misc.sidebarContact | default: site.data.website_text.misc.sidebarContact %}
+    {% if contact_button.visible %}<button type="button" class="btn btn--inverse">{{ contact_button.label | escape }}</button>{% endif %}
     <ul class="author__urls social-icons">
-      {% if profile.location %}
-        <li class="author__desktop"><i class="fas fa-fw fa-location-dot icon-pad-right" aria-hidden="true"></i>{{ profile.location | escape }}</li>
+      {% if profile_location and profile_location != "" %}
+        <li class="author__desktop"><i class="fas fa-fw fa-location-dot icon-pad-right" aria-hidden="true"></i>{{ profile_location | escape }}</li>
       {% endif %}
-      {% if profile.institution %}
-        <li class="author__desktop"><i class="fas fa-fw fa-building-columns icon-pad-right" aria-hidden="true"></i>{{ profile.institution | escape }}</li>
+      {% if profile_institution and profile_institution != "" %}
+        <li class="author__desktop"><i class="fas fa-fw fa-building-columns icon-pad-right" aria-hidden="true"></i>{{ profile_institution | escape }}</li>
       {% endif %}
-      {% if profile.email %}
-        <li><a href="mailto:{{ profile.email | escape }}"><i class="fas fa-fw fa-envelope icon-pad-right" aria-hidden="true"></i>电子邮箱</a></li>
+      {% if profile_email and profile_email != "" %}
+        <li><a href="mailto:{{ profile_email | escape }}"><i class="fas fa-fw fa-envelope icon-pad-right" aria-hidden="true"></i>电子邮箱</a></li>
       {% endif %}
-      {% if profile.links.github %}
+      {% if profile.links.github != blank %}
         <li><a href="{{ profile.links.github | escape }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-fw fa-github icon-pad-right" aria-hidden="true"></i>GitHub</a></li>
       {% endif %}
-      {% if profile.links.kaggle %}
+      {% if profile.links.kaggle != blank %}
         <li><a href="{{ profile.links.kaggle | escape }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-fw fa-kaggle icon-pad-right" aria-hidden="true"></i>Kaggle</a></li>
       {% endif %}
-      {% if profile.links.googleScholar %}
+      {% if profile.links.googleScholar != blank %}
         <li><a href="{{ profile.links.googleScholar | escape }}" target="_blank" rel="noopener noreferrer"><i class="ai ai-google-scholar ai-fw icon-pad-right" aria-hidden="true"></i>Google Scholar</a></li>
       {% endif %}
-      {% if profile.links.orcid %}
+      {% if profile.links.orcid != blank %}
         <li><a href="{{ profile.links.orcid | escape }}" target="_blank" rel="noopener noreferrer"><i class="ai ai-orcid ai-fw icon-pad-right" aria-hidden="true"></i>ORCID</a></li>
       {% endif %}
-      {% if profile.links.linkedin %}
+      {% if profile.links.linkedin != blank %}
         <li><a href="{{ profile.links.linkedin | escape }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-fw fa-linkedin icon-pad-right" aria-hidden="true"></i>LinkedIn</a></li>
       {% endif %}
-      {% if profile.links.bluesky %}
+      {% if profile.links.bluesky != blank %}
         <li><a href="{{ profile.links.bluesky | escape }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-fw fa-bluesky icon-pad-right" aria-hidden="true"></i>Bluesky</a></li>
       {% endif %}
     </ul>

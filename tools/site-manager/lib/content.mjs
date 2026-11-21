@@ -1,4 +1,23 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+
+export const websiteTextDefaults = JSON.parse(readFileSync(new URL("../../../_data/website_text.json", import.meta.url), "utf8"));
+
+export function resolvedWebsiteText(content) {
+  const text = content.website?.text || {};
+  return {
+    home: { ...structuredClone(websiteTextDefaults.home), ...text.home },
+    misc: { ...structuredClone(websiteTextDefaults.misc), ...text.misc },
+    footer: structuredClone(text.footer ?? websiteTextDefaults.footer),
+    pages: { ...structuredClone(websiteTextDefaults.pages), ...text.pages }
+  };
+}
+
+function isCalendarDate(value) {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
 
 export const sectionDefinitions = [
   {
@@ -121,6 +140,25 @@ export const sectionDefinitions = [
 ];
 
 export const sectionKeys = sectionDefinitions.map((section) => section.key);
+
+export const websiteProfileFields = [
+  { key: "name", label: "展示名", required: true },
+  { key: "nameEn", label: "英文展示名" },
+  { key: "preferredName", label: "常用英文名" },
+  { key: "pronouns", label: "称谓" },
+  { key: "headline", label: "网站身份或副标题" },
+  { key: "summary", label: "网站简介", type: "textarea" },
+  { key: "motto", label: "个人寄语" },
+  { key: "institution", label: "学校或单位" },
+  { key: "location", label: "所在地" },
+  { key: "email", label: "网站联系邮箱", type: "email" },
+  { key: "researchInterests", label: "研究兴趣", type: "lines" },
+  { key: "avatar", label: "网站头像", type: "avatar" }
+];
+
+export function resolvedWebsiteProfile(content) {
+  return { ...content.profile, ...content.website?.profile };
+}
 
 const MAX_CONTENT_BYTES = 2 * 1024 * 1024;
 const MAX_TEXT_LENGTH = 12000;
@@ -245,6 +283,87 @@ export function validateContent(content) {
       }
     }
     if (!Array.isArray(content.profile.researchInterests)) errors.push("研究兴趣必须是数组");
+  }
+
+  if (content.website !== undefined) {
+    const website = content.website;
+    if (!isObject(website)) errors.push("网站设置必须是对象");
+    else {
+      if (website.text !== undefined) {
+        const text = website.text;
+        if (!isObject(text)) errors.push("网站说明文字设置必须是对象");
+        else {
+          for (const group of Object.keys(text)) if (!["home", "misc", "footer", "pages"].includes(group)) errors.push(`未知的说明文字分组：${group}`);
+          for (const group of ["home", "misc", "pages"]) {
+            if (text[group] === undefined) continue;
+            if (!isObject(text[group])) { errors.push(`网站说明 ${group} 必须是对象`); continue; }
+            for (const [key, entry] of Object.entries(text[group])) {
+              if (!Object.hasOwn(websiteTextDefaults[group], key)) { errors.push(`未知的说明文字：${key}`); continue; }
+              const field = group === "pages" ? "text" : "label";
+              if (!isObject(entry) || typeof entry.visible !== "boolean" || typeof entry[field] !== "string") errors.push(`说明文字 ${key} 缺少有效的文字或显示开关`);
+              else if (group !== "pages" && entry.visible && !entry.label.trim()) errors.push(`显示中的首页文字 ${key} 不能为空`);
+            }
+          }
+          if (text.footer !== undefined) {
+            const footer = text.footer;
+            if (!isObject(footer)) errors.push("页脚设置必须是对象");
+            else {
+              for (const key of ["contactVisible", "copyrightVisible", "creditsVisible", "noteVisible"]) if (typeof footer[key] !== "boolean") errors.push(`页脚 ${key} 必须是显示开关`);
+              if (typeof footer.note !== "string") errors.push("页脚备注必须是文字");
+              const updated = footer.updated;
+              if (!isObject(updated)) errors.push("更新时间设置必须是对象");
+              else {
+                if (typeof updated.visible !== "boolean") errors.push("更新时间必须有显示开关");
+                if (!["publish", "manual"].includes(updated.mode)) errors.push("更新时间方式不正确");
+                if (!["iso", "chinese"].includes(updated.format)) errors.push("更新时间格式不正确");
+                if (typeof updated.label !== "string") errors.push("更新时间前缀必须是文字");
+                if (typeof updated.date !== "string" || (updated.date !== "" && !isCalendarDate(updated.date)) || (updated.visible && updated.mode === "manual" && !isCalendarDate(updated.date))) errors.push("手动更新日期必须是有效的 YYYY-MM-DD 日期");
+              }
+            }
+          }
+        }
+      }
+      if (website.profile !== undefined && !isObject(website.profile)) errors.push("网站形象必须是对象");
+      else if (website.profile) {
+        for (const [key, value] of Object.entries(website.profile)) {
+          const field = websiteProfileFields.find((entry) => entry.key === key);
+          if (!field) { errors.push(`未知的网站形象字段：${key}`); continue; }
+          if (field.type === "lines") {
+            if (!Array.isArray(value) || value.some((line) => typeof line !== "string")) errors.push("网站研究兴趣必须是文字数组");
+          } else if (typeof value !== "string") errors.push(`网站${field.label}必须是文字`);
+          else {
+            if (field.required && !value.trim()) errors.push(`网站${field.label}不能为空`);
+            if (key === "email" && value && !EMAIL_PATTERN.test(value)) errors.push("网站联系邮箱格式不正确");
+            if (key === "avatar" && value) {
+              if (!/^[a-z0-9][a-z0-9._-]*\.(?:jpe?g|png|webp)$/i.test(value) && !isAllowedUrl(value, { allowRelative: false })) errors.push("网站头像地址格式不正确");
+              if (isPdfUrl(value)) errors.push("网站头像不允许指向 PDF");
+            }
+          }
+        }
+      }
+      if (website.home !== undefined) {
+        if (!isObject(website.home)) errors.push("首页编排必须是对象");
+        else {
+          if (website.home.introduction !== undefined && typeof website.home.introduction !== "string") errors.push("首页欢迎语必须是文字");
+          if (website.home.sections !== undefined) {
+            if (!Array.isArray(website.home.sections)) errors.push("首页模块必须是数组");
+            else {
+              const seen = new Set();
+              for (const section of website.home.sections) {
+                if (!isObject(section) || !sectionKeys.includes(section.key)) { errors.push("首页模块包含未知栏目"); continue; }
+                if (seen.has(section.key)) errors.push(`首页模块重复：${section.key}`);
+                seen.add(section.key);
+                if (typeof section.title !== "string" || !section.title.trim()) errors.push("首页模块标题不能为空");
+                if (typeof section.description !== "string") errors.push("首页模块说明必须是文字");
+                if (typeof section.visible !== "boolean") errors.push("首页模块缺少显示开关");
+                if (!["featured", "published"].includes(section.source)) errors.push("首页模块内容来源不正确");
+                if (!Number.isInteger(section.limit) || section.limit < 1 || section.limit > 20) errors.push("首页模块显示数量必须是 1 到 20 的整数");
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   for (const section of sectionDefinitions) {

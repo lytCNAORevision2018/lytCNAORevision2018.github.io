@@ -7,4 +7,5 @@ redirect_from:
   - /outside-research/
 ---
 {% assign data = site.data.site_content %}
+{% include content/page-intro.html key="outsideResearch" %}
 {% include content/section.html id="outside" title="全部记录" items=data.outsideResearch %}

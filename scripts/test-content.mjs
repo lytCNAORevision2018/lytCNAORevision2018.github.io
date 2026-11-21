@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { contentRevision, toPublishedContent, validateContent } from "../tools/site-manager/lib/content.mjs";
+import { contentRevision, resolvedWebsiteProfile, resolvedWebsiteText, websiteTextDefaults, toPublishedContent, validateContent } from "../tools/site-manager/lib/content.mjs";
 
 const source = JSON.parse(await readFile(new URL("../_data/site_content.json", import.meta.url), "utf8"));
 
@@ -135,4 +135,70 @@ for (const url of [
   assert.notEqual(revision, contentRevision(content), "内容变化后 revision 必须变化");
 }
 
-console.log("内容模型测试通过。");
+{
+  const content = copy();
+  const formal = structuredClone(content.profile);
+  content.website = { profile: { name: "网站展示名", summary: "", researchInterests: [] } };
+  assert.deepEqual(validateContent(content), []);
+  assert.equal(resolvedWebsiteProfile(content).name, "网站展示名");
+  assert.equal(resolvedWebsiteProfile(content).summary, "", "空的独立简介应隐藏原简介，不能意外回退");
+  assert.equal(resolvedWebsiteProfile(content).email, formal.email, "未独立设置的字段继续同步");
+  assert.deepEqual(content.profile, formal, "独立网站形象不得改动简历资料");
+  const published = toPublishedContent(content, "2026-11-21");
+  assert.equal(published.website.profile.name, "网站展示名", "网站设置必须随内容发布");
+  delete content.website.profile.name;
+  assert.equal(resolvedWebsiteProfile(content).name, formal.name, "移除独立设置应恢复同步");
+  content.website.profile.avatar = "javascript:alert(1)";
+  expectError(content, /网站头像地址格式/);
+  content.website.profile.avatar = "https://assets.invalid/slides.pdf";
+  expectError(content, /网站头像不允许指向 PDF/);
+}
+
+{
+  const content = copy();
+  const section = { key: "awards", title: "部分荣誉", description: "", visible: true, source: "published", limit: 2 };
+  content.website = { home: { introduction: "首页的独立介绍", sections: [section] } };
+  assert.deepEqual(validateContent(content), []);
+  content.website.home.sections.push({ ...section });
+  expectError(content, /首页模块重复/);
+  content.website.home.sections.pop();
+  section.limit = 0;
+  expectError(content, /显示数量/);
+  section.limit = 2;
+  section.source = "private";
+  expectError(content, /内容来源/);
+  section.source = "published";
+  section.key = "unknown";
+  expectError(content, /未知栏目/);
+}
+
+{
+  const content = copy();
+  assert.equal(resolvedWebsiteText(content).footer.updated.mode, "publish");
+  content.website = { text: structuredClone(websiteTextDefaults) };
+  const text = content.website.text;
+  text.footer.updated = { visible: true, mode: "manual", date: "2026-10-15", label: "资料更新", format: "chinese" };
+  text.footer.creditsVisible = false;
+  text.home.more = { visible: false, label: "更多记录" };
+  text.pages.awards = { visible: false, text: "保留但不显示的说明" };
+  assert.deepEqual(validateContent(content), []);
+  const published = toPublishedContent(content, "2026-11-21");
+  assert.equal(published.meta.lastUpdated, "2026-11-21", "真实发布日期继续独立记录");
+  assert.equal(published.website.text.footer.updated.date, "2026-10-15", "手动展示日期不能被发布日期覆盖");
+  assert.equal(published.website.text.footer.creditsVisible, false);
+  text.footer.updated.date = "2026-02-30";
+  expectError(content, /有效的 YYYY-MM-DD/);
+  text.footer.updated.date = "";
+  expectError(content, /有效的 YYYY-MM-DD/);
+  text.footer.updated.visible = false;
+  assert.deepEqual(validateContent(content), [], "隐藏时间时可以暂不填写手动日期");
+  text.footer.updated.visible = true;
+  text.footer.updated.mode = "publish";
+  assert.deepEqual(validateContent(content), []);
+  text.home.cv.label = "";
+  expectError(content, /首页文字 cv 不能为空/);
+  text.home.cv.visible = false;
+  assert.deepEqual(validateContent(content), []);
+}
+
+console.log("内容模型、网站独立设置与说明文字测试通过。");

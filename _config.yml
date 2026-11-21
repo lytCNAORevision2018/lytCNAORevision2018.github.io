@@ -131,6 +131,7 @@ exclude:
   - talkmap_out.ipynb
   - "主页管理器.cmd"
   - "维护主页说明.md"
+  - "首页与栏目调整指南.md"
 keep_files:
   - .git
   - .svn

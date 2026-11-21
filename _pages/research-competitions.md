@@ -7,5 +7,6 @@ redirect_from:
   - /research-competitions/
 ---
 {% assign data = site.data.site_content %}
+{% include content/page-intro.html key="projects" %}
 {% include content/section.html id="projects" title="全部项目" items=data.projects %}
 

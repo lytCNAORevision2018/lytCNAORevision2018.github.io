@@ -1,9 +1,27 @@
 /* Data-driven profile pages and entries. */
 
+:root {
+  --global-text-color: #273740;
+  --global-text-color-light: #495861;
+  --global-link-color: #1b6a80;
+  --global-link-color-hover: #134e60;
+  --global-link-color-visited: #514a83;
+}
+
 .home-intro {
   margin-bottom: 2.5rem;
   padding: 0.25rem 0 0.25rem 1.25rem;
   border-left: 4px solid var(--global-link-color);
+}
+
+.home-welcome {
+  max-width: 48rem;
+  margin: -0.5rem 0 2.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--global-border-color);
+  font-size: $type-size-5;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
 }
 
 .home-intro__name {
@@ -24,7 +42,7 @@
 }
 
 .home-intro__motto {
-  font-family: $serif;
+  font-family: $global-font-family;
 }
 
 .home-intro__headline {
@@ -307,6 +325,60 @@
   .content-entry__date {
     white-space: normal;
   }
+}
+
+/* Supporting text remains readable at both mobile and desktop sizes. */
+.page-introduction,
+.home-intro__preferred,
+.home-intro__motto,
+.profile-section__heading p,
+.content-entry__meta,
+.content-entry__date,
+.talk-document__notice {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--managed-secondary-color, #495861);
+}
+
+.home-intro__interests,
+.home-intro__actions a,
+.content-entry__links a,
+.cv-summary__contact a,
+.profile-section__more {
+  font-size: 0.9375rem;
+}
+
+.home-intro__interests > span {
+  color: var(--managed-secondary-color, #495861);
+}
+
+.home-intro__interests li,
+.content-entry__tags li,
+.talk-document__pages figcaption {
+  font-size: 0.875rem;
+}
+
+.page__footer,
+.page__footer-copyright,
+.page__footer-follow li {
+  color: var(--managed-secondary-color, #495861);
+  font-family: $global-font-family;
+  font-size: 0.875rem;
+  line-height: 1.8;
+}
+
+.page__footer-copyright p { margin: 0.25rem 0; }
+.footer-note, .page-introduction { overflow-wrap: anywhere; }
+.page-introduction { margin: 0 0 1.75rem; }
+.sidebar p, .sidebar li { font-size: 0.875rem; line-height: 1.65; }
+.author__urls-wrapper .btn { white-space: nowrap; min-height: 44px; padding: 0.5rem 0.7rem; font-size: 0.875rem; }
+.home-intro__actions a, .content-entry__links a, .cv-summary__contact a { min-height: 44px; }
+
+html[data-theme="dark"] {
+  --managed-secondary-color: #c1cbd2;
+  --global-link-color: #8ed8eb;
+  --global-link-color-hover: #c0edfa;
+  --global-link-color-visited: #d4bdf0;
 }
 
 @media print {

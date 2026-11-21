@@ -29,7 +29,10 @@
     headCommit: "",
     source: "published",
     sections: [],
-    activeSection: "profile",
+    activeSection: "website",
+    websiteProfileFields: [],
+    homeDefaults: [],
+    textDefaults: {},
     dirty: false,
     busy: false,
     git: null,
@@ -85,7 +88,7 @@
   function setBusy(busy) {
     state.busy = busy;
     topButtons.forEach((button) => {
-      button.disabled = busy;
+      button.disabled = busy || (Boolean(state.git && state.git.branch !== "master") && ["sync-button", "publish-button"].includes(button.id));
     });
     workspace.inert = busy;
     workspace.setAttribute("aria-busy", busy ? "true" : "false");
@@ -110,10 +113,20 @@
     }
     const changeCount = state.git?.changes?.length || 0;
     const syncParts = [];
+    const preview = Boolean(state.git && state.git.branch !== "master");
+    if (preview) syncParts.push("本地功能预览，可保存草稿");
     if (changeCount) syncParts.push(`${changeCount} 个仓库修改`);
     if (state.git?.ahead) syncParts.push(`领先云端 ${state.git.ahead}`);
     if (state.git?.behind) syncParts.push(`落后云端 ${state.git.behind}`);
     gitStatus.textContent = syncParts.join(" · ") || "仓库已同步";
+    document.getElementById("publish-notice").hidden = !preview;
+    for (const id of ["sync-button", "publish-button"]) {
+      const button = document.getElementById(id);
+      button.disabled = state.busy || Boolean(preview);
+      button.title = preview ? "当前为本地功能预览，代码合入正式版后可同步和发布。" : "";
+      if (preview) button.setAttribute("aria-describedby", "publish-notice");
+      else button.removeAttribute("aria-describedby");
+    }
   }
 
   function getPath(path) {
@@ -131,7 +144,10 @@
 
   function renderNav() {
     const buttons = [
-      { key: "profile", label: "基本资料", count: "" },
+      { key: "website", label: "网站形象", count: "" },
+      { key: "home", label: "首页编排", count: "" },
+      { key: "text", label: "文字与页脚", count: "" },
+      { key: "profile", label: "简历与共享资料", count: "" },
       ...state.sections.map((section) => ({
         key: section.key,
         label: section.label,
@@ -161,13 +177,11 @@
     editor.innerHTML = `
       <div class="section-heading">
         <div>
-          <h1>基本资料</h1>
-          <p>站点标题、个人介绍、联系方式与全站侧栏资料。</p>
+          <h1>简历与共享资料</h1>
+          <p>简历使用这里的正式资料。网站形象中设为“跟随共享资料”的字段，也会随这里更新。</p>
         </div>
       </div>
       <div class="form-grid" id="profile-form">
-        ${inputField({ path: "meta.siteTitle", label: "站点标题" })}
-        ${inputField({ path: "meta.description", label: "搜索与分享描述" })}
         ${inputField({ path: "profile.name", label: "中文姓名" })}
         ${inputField({ path: "profile.nameEn", label: "英文姓名" })}
         ${inputField({ path: "profile.preferredName", label: "常用英文名" })}
@@ -187,7 +201,7 @@
           <span class="field-group__label">头像</span>
           <div class="avatar-control">
             <div id="avatar-fallback" class="avatar-control__fallback"${avatar ? " hidden" : ""}>${escapeHtml((state.content.profile.name || "李").slice(0, 1))}</div>
-            <img id="avatar-preview"${avatar ? ` src="${escapeHtml(state.siteUrl.replace(/\/$/, ""))}/images/${escapeHtml(avatar)}"` : ""} alt="当前头像"${avatar ? "" : " hidden"}>
+            <img id="avatar-preview"${avatar ? ` src="${escapeHtml(avatarPreviewUrl("profile", avatar))}"` : ""} alt="当前头像"${avatar ? "" : " hidden"}>
             <label class="button button--secondary">
               选择图片
               <input id="avatar-upload" type="file" accept="image/png,image/jpeg,image/webp" hidden>
@@ -210,8 +224,134 @@
     `;
   }
 
+  function websiteSettings() {
+    state.content.website ||= {};
+    state.content.website.profile ||= {};
+    state.content.website.home ||= {};
+    return state.content.website;
+  }
+
+  function avatarPreviewUrl(scope, avatar) {
+    if (/^https?:\/\//i.test(avatar)) return avatar;
+    return `/preview/avatar/${scope}?token=${encodeURIComponent(token)}&revision=${encodeURIComponent(state.revision)}`;
+  }
+
+  function renderWebsite() {
+    const overrides = state.content.website?.profile || {};
+    const effective = { ...state.content.profile, ...overrides };
+    editor.innerHTML = `
+      <div class="section-heading"><div><h1>网站形象</h1><p>首页和各栏目侧栏可以使用自己的名字、简介与头像。个人简历继续使用正式资料。</p></div></div>
+      <div class="settings-note">每个字段都能单独选择同步。取消“跟随共享资料”后即可独立编辑；重新勾选会恢复同步。</div>
+      <div class="form-grid website-meta">
+        ${inputField({ path: "meta.siteTitle", label: "站点标题", help: "用于网站导航和浏览器标题，可独立于姓名设置。" })}
+        ${inputField({ path: "meta.description", label: "搜索与分享描述" })}
+      </div>
+      <div class="website-identity-preview"><span class="settings-eyebrow">网站展示</span><strong>${escapeHtml(effective.name)}</strong><span>${escapeHtml(effective.headline)}</span></div>
+      <div class="form-grid website-fields">
+      ${state.websiteProfileFields.map((field) => {
+        const synced = !Object.hasOwn(overrides, field.key);
+        const value = effective[field.key] ?? "";
+        let control;
+        if (field.type === "avatar") {
+          control = `<div class="avatar-control">${value ? `<img src="${escapeHtml(avatarPreviewUrl("website", value))}" alt="网站头像预览">` : `<span class="avatar-control__fallback">${escapeHtml((effective.name || "李").slice(0, 1))}</span>`}<label class="button button--secondary${synced ? " button--disabled" : ""}">选择网站头像<input id="website-avatar-upload" type="file" accept="image/png,image/jpeg,image/webp"${synced ? " disabled" : ""} hidden></label>${!synced && value ? '<button class="button button--quiet" type="button" data-remove-website-avatar>移除网站头像</button>' : ""}</div><p class="field-help">取消同步后请单独选择网站图片；未选择时显示姓名首字。选择图片会同时保存当前草稿，不会替换简历头像。</p>`;
+        } else {
+          const text = field.type === "lines" ? value.join("\n") : value;
+          const attributes = `data-website-field="${field.key}"${synced ? " disabled" : ""}`;
+          control = ["textarea", "lines"].includes(field.type)
+            ? `<textarea ${attributes} aria-label="${escapeHtml(field.label)}">${escapeHtml(text)}</textarea>`
+            : `<input type="${field.type === "email" ? "email" : "text"}" ${attributes} aria-label="${escapeHtml(field.label)}" value="${escapeHtml(text)}">`;
+        }
+        return `<div class="field ${["textarea", "lines", "avatar"].includes(field.type) ? "field--wide" : ""}"><div class="field-sync-heading"><span>${escapeHtml(field.label)}</span><label class="toggle"><input type="checkbox" data-sync-field="${field.key}"${synced ? " checked" : ""}>跟随共享资料</label></div>${control}</div>`;
+      }).join("")}
+      </div>`;
+  }
+
+  function homeSections() {
+    return state.content.website?.home?.sections ?? state.homeDefaults;
+  }
+
+  function editableHomeSections() {
+    const settings = websiteSettings();
+    settings.home.sections ||= structuredClone(state.homeDefaults);
+    return settings.home.sections;
+  }
+
+  function homeModuleStatus(section) {
+    const published = state.content[section.key].filter((item) => item.published);
+    const eligible = section.source === "featured" ? published.filter((item) => item.featured) : published;
+    if (!section.visible) return "已关闭";
+    if (!published.length) return "暂无公开内容 · 自动隐藏";
+    if (!eligible.length) return "尚未选中首页条目 · 自动隐藏";
+    return `首页显示 ${Math.min(eligible.length, section.limit)} 条 · 共 ${published.length} 条公开内容`;
+  }
+
+  function renderHome() {
+    const settings = state.content.website?.home || {};
+    editor.innerHTML = `
+      <div class="section-heading"><div><h1>首页编排</h1><p>首页单独安排展示方式，条目内容仍从原栏目同步。调整首页不会改动简历和栏目页。</p></div></div>
+      <div class="settings-note">有内容才展示。没有公开条目的模块自动收起，对应栏目导航也会隐藏；日后添加公开内容会自动出现。</div>
+      <label class="field home-introduction"><span>首页欢迎语（可留空）</span><textarea data-home-introduction>${escapeHtml(settings.introduction || "")}</textarea><p class="field-help">只出现在首页，不写入个人简历。支持分段换行。</p></label>
+      <div class="home-module-list">
+      ${homeSections().map((section, index) => {
+        const definition = sectionDefinition(section.key);
+        return `<article class="home-module" data-module-index="${index}">
+          <div class="home-module__heading"><div><h2>${escapeHtml(definition.label)}</h2><p class="field-help" data-home-status>${homeModuleStatus(section)}</p></div><div class="entry-actions"><button class="button button--quiet" type="button" data-home-move="up" data-index="${index}" aria-label="上移${escapeHtml(definition.label)}"${index === 0 ? " disabled" : ""}>↑</button><button class="button button--quiet" type="button" data-home-move="down" data-index="${index}" aria-label="下移${escapeHtml(definition.label)}"${index === homeSections().length - 1 ? " disabled" : ""}>↓</button></div></div>
+          <div class="form-grid">
+            <label class="field"><span>首页标题</span><input data-home-setting="title" value="${escapeHtml(section.title)}"></label>
+            <label class="field"><span>显示数量</span><input type="number" min="1" max="20" data-home-setting="limit" value="${section.limit}"></label>
+            <label class="field"><span>内容来源</span><select data-home-setting="source"><option value="featured"${section.source === "featured" ? " selected" : ""}>仅选中“在首页展示”的公开条目</option><option value="published"${section.source === "published" ? " selected" : ""}>全部公开条目，按栏目顺序</option></select></label>
+            <label class="toggle"><input type="checkbox" data-home-setting="visible"${section.visible ? " checked" : ""}>在首页启用此模块</label>
+            <label class="field field--wide"><span>首页模块说明（可留空）</span><input data-home-setting="description" value="${escapeHtml(section.description)}"></label>
+          </div></article>`;
+      }).join("")}</div>`;
+  }
+
   function sectionDefinition(key) {
     return state.sections.find((section) => section.key === key);
+  }
+
+  function effectiveText() {
+    const text = state.content.website?.text || {};
+    return {
+      home: { ...structuredClone(state.textDefaults.home), ...text.home },
+      misc: { ...structuredClone(state.textDefaults.misc), ...text.misc },
+      footer: structuredClone(text.footer ?? state.textDefaults.footer),
+      pages: { ...structuredClone(state.textDefaults.pages), ...text.pages }
+    };
+  }
+
+  function editableText() {
+    const settings = websiteSettings();
+    settings.text = effectiveText();
+    return settings.text;
+  }
+
+  function renderText() {
+    const text = effectiveText();
+    const updated = text.footer.updated;
+    const homeLabels = { preferredName: "常用英文名提示", interests: "研究兴趣标题", contact: "首页联系按钮", cv: "首页简历按钮", github: "首页 GitHub 按钮", more: "首页查看全部链接" };
+    const field = (path, label, value, type = "text") => `<label class="field"><span>${label}</span><input type="${type}" data-text-path="${path}" value="${escapeHtml(value)}"></label>`;
+    const toggle = (path, label, value) => `<label class="toggle"><input type="checkbox" data-text-path="${path}"${value ? " checked" : ""}>${label}</label>`;
+    editor.innerHTML = `
+      <div class="section-heading"><div><h1>文字与页脚</h1><p>选择哪些说明对访客可见，并按自己的表达修改。关闭显示会保留已填写的文字。</p></div></div>
+      <section class="settings-card"><h2>最后更新时间</h2>
+        ${toggle("footer.updated.visible", "显示内容更新时间", updated.visible)}
+        <div class="form-grid">
+          <label class="field"><span>日期来源</span><select data-text-path="footer.updated.mode"><option value="publish"${updated.mode === "publish" ? " selected" : ""}>随成功发布自动更新（北京时间）</option><option value="manual"${updated.mode === "manual" ? " selected" : ""}>手动选择日期</option></select></label>
+          <label class="field"><span>手动日期</span><input type="date" data-text-path="footer.updated.date" value="${escapeHtml(updated.date)}"${updated.mode === "manual" ? "" : " disabled"}></label>
+          ${field("footer.updated.label", "日期前面的文字（可留空）", updated.label)}
+          <label class="field"><span>显示格式</span><select data-text-path="footer.updated.format"><option value="iso"${updated.format === "iso" ? " selected" : ""}>2026-11-21</option><option value="chinese"${updated.format === "chinese" ? " selected" : ""}>2026年11月21日</option></select></label>
+        </div><p class="field-help">草稿保留的历史记录日期：${escapeHtml(state.content.meta.lastUpdated || "尚无记录")}。自动模式在成功发布时写入当日日期；手动模式显示所选日期。保存草稿不会改变线上日期。</p>
+      </section>
+      <section class="settings-card"><h2>页脚说明</h2><div class="settings-toggles">
+        ${toggle("footer.contactVisible", "显示页脚联系方式", text.footer.contactVisible)}
+        ${toggle("footer.copyrightVisible", "显示年份与署名", text.footer.copyrightVisible)}
+        ${toggle("footer.creditsVisible", "显示 Jekyll / Academic Pages 生成说明", text.footer.creditsVisible)}
+        ${toggle("footer.noteVisible", "显示额外备注", text.footer.noteVisible)}
+      </div><label class="field"><span>额外备注（可留空）</span><textarea data-text-path="footer.note">${escapeHtml(text.footer.note)}</textarea></label></section>
+      <section class="settings-card"><h2>首页提示与按钮</h2><div class="form-grid">${Object.entries(text.home).map(([key, entry]) => `<div class="field"><div class="field-sync-heading"><span>${homeLabels[key]}</span>${toggle(`home.${key}.visible`, "显示", entry.visible)}</div><input aria-label="${homeLabels[key]}" data-text-path="home.${key}.label" value="${escapeHtml(entry.label)}"></div>`).join("")}</div></section>
+      <section class="settings-card"><h2>栏目开场说明</h2><p class="field-help">只修改栏目页标题下的说明，不改动条目内容、简历资料或首页模块说明。</p><div class="form-grid">${Object.entries(text.pages).map(([key, entry]) => `<div class="field"><div class="field-sync-heading"><span>${key === "cv" ? "个人简历" : sectionDefinition(key).label}</span>${toggle(`pages.${key}.visible`, "显示说明", entry.visible)}</div><textarea aria-label="${key === "cv" ? "个人简历" : sectionDefinition(key).label}开场说明" data-text-path="pages.${key}.text">${escapeHtml(entry.text)}</textarea></div>`).join("")}</div></section>
+      <section class="settings-card"><h2>其它提示</h2><div class="form-grid">${Object.entries(text.misc).map(([key, entry]) => { const label = {sidebarContact:"手机侧栏联系方式按钮",sitemap:"页脚站点地图链接",talkNotice:"讲义图片说明"}[key]; return `<div class="field"><div class="field-sync-heading"><span>${label}</span>${toggle(`misc.${key}.visible`, "显示", entry.visible)}</div><input aria-label="${label}" data-text-path="misc.${key}.label" value="${escapeHtml(entry.label)}"></div>`; }).join("")}</div></section>`;
   }
 
   function renderSection(key) {
@@ -256,6 +396,9 @@
   function render() {
     renderNav();
     if (state.activeSection === "profile") renderProfile();
+    else if (state.activeSection === "website") renderWebsite();
+    else if (state.activeSection === "home") renderHome();
+    else if (state.activeSection === "text") renderText();
     else renderSection(state.activeSection);
     editor.focus({ preventScroll: true });
     updateStatus();
@@ -630,7 +773,7 @@
     }
   }
 
-  async function uploadAvatar(file) {
+  async function uploadAvatar(file, scope = "profile") {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
       showToast("头像文件必须小于 5 MB。", "error");
@@ -643,26 +786,29 @@
       reader.readAsDataURL(file);
     });
     const base64 = String(dataUrl).split(",")[1];
+    if (state.dirty) {
+      await saveDraft();
+      if (state.dirty) return;
+    }
     setBusy(true);
     try {
       const payload = await api("/api/avatar", {
         method: "POST",
         body: JSON.stringify({
+          scope,
           mimeType: file.type,
           data: base64,
           baseRevision: state.revision,
           baseCommit: state.baseCommit
         })
       });
-      state.content.profile.avatar = payload.avatar;
+      if (scope === "website") websiteSettings().profile.avatar = payload.avatar;
+      else state.content.profile.avatar = payload.avatar;
       state.revision = payload.revision;
       state.baseCommit = payload.baseCommit;
       state.source = "draft";
-      const preview = document.querySelector("#avatar-preview");
-      preview.src = dataUrl;
-      preview.hidden = false;
-      document.querySelector("#avatar-fallback").hidden = true;
-      updateStatus();
+      state.dirty = false;
+      render();
       showToast(payload.message);
     } catch (error) {
       showToast(error.message, "error");
@@ -671,22 +817,29 @@
     }
   }
 
-  async function removeAvatar() {
-    if (!state.content.profile.avatar) return;
-    if (!window.confirm("确定移除当前头像吗？下次发布后，网站会改用姓名首字回退头像。")) return;
+  async function removeAvatar(scope = "profile") {
+    const profile = scope === "website" ? state.content.website?.profile : state.content.profile;
+    if (!profile?.avatar) return;
+    if (!window.confirm("确定移除当前头像吗？下次发布后，相应位置会改用姓名首字头像。")) return;
+    if (state.dirty) {
+      await saveDraft();
+      if (state.dirty) return;
+    }
     setBusy(true);
     try {
       const payload = await api("/api/avatar/remove", {
         method: "POST",
         body: JSON.stringify({
+          scope,
           baseRevision: state.revision,
           baseCommit: state.baseCommit
         })
       });
-      state.content.profile.avatar = "";
+      profile.avatar = "";
       state.revision = payload.revision;
       state.baseCommit = payload.baseCommit;
       state.source = "draft";
+      state.dirty = false;
       render();
       showToast(payload.message);
     } catch (error) {
@@ -705,6 +858,9 @@
       state.headCommit = payload.headCommit;
       state.source = payload.source;
       state.sections = payload.sections;
+      state.websiteProfileFields = payload.websiteProfileFields || [];
+      state.homeDefaults = payload.homeDefaults || [];
+      state.textDefaults = payload.websiteTextDefaults || {};
       state.git = payload.git;
       state.pdfTools = payload.pdfTools;
       state.siteUrl = payload.siteUrl;
@@ -733,6 +889,34 @@
 
   editor.addEventListener("input", (event) => {
     if (state.busy) return;
+    if (event.target.dataset.textPath) {
+      const keys = event.target.dataset.textPath.split(".");
+      let target = editableText();
+      for (const key of keys.slice(0, -1)) target = target[key];
+      target[keys.at(-1)] = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+      if (event.target.dataset.textPath === "footer.updated.mode") editor.querySelector('[data-text-path="footer.updated.date"]').disabled = event.target.value !== "manual";
+      markDirty();
+    }
+    if (event.target.dataset.websiteField) {
+      const key = event.target.dataset.websiteField;
+      websiteSettings().profile[key] = key === "researchInterests"
+        ? event.target.value.split(/\r?\n/).map((value) => value.trim()).filter(Boolean)
+        : event.target.value;
+      if (key === "name") editor.querySelector(".website-identity-preview strong").textContent = event.target.value;
+      if (key === "headline") editor.querySelector(".website-identity-preview > span:last-child").textContent = event.target.value;
+      markDirty();
+    }
+    if (event.target.hasAttribute("data-home-introduction")) {
+      websiteSettings().home.introduction = event.target.value;
+      markDirty();
+    }
+    if (event.target.dataset.homeSetting) {
+      const key = event.target.dataset.homeSetting;
+      const index = Number(event.target.closest("[data-module-index]").dataset.moduleIndex);
+      editableHomeSections()[index][key] = key === "limit" ? Number(event.target.value) : key === "visible" ? event.target.checked : event.target.value;
+      event.target.closest("[data-module-index]").querySelector("[data-home-status]").textContent = homeModuleStatus(homeSections()[index]);
+      markDirty();
+    }
     const path = event.target.dataset.profilePath;
     if (path) {
       setPath(path, event.target.value);
@@ -746,11 +930,36 @@
 
   editor.addEventListener("change", (event) => {
     if (state.busy) return;
+    if (event.target.dataset.syncField) {
+      const key = event.target.dataset.syncField;
+      const overrides = websiteSettings().profile;
+      if (event.target.checked) delete overrides[key];
+      else overrides[key] = key === "avatar" ? "" : structuredClone(state.content.profile[key] ?? "");
+      markDirty();
+      render();
+    }
     if (event.target.id === "avatar-upload") uploadAvatar(event.target.files[0]);
+    if (event.target.id === "website-avatar-upload") uploadAvatar(event.target.files[0], "website");
   });
 
   editor.addEventListener("click", (event) => {
     if (state.busy) return;
+    if (event.target.closest("[data-remove-website-avatar]")) {
+      removeAvatar("website");
+      return;
+    }
+    const homeMove = event.target.closest("[data-home-move]");
+    if (homeMove) {
+      const index = Number(homeMove.dataset.index);
+      const destination = index + (homeMove.dataset.homeMove === "up" ? -1 : 1);
+      const sections = editableHomeSections();
+      if (destination >= 0 && destination < sections.length) {
+        [sections[index], sections[destination]] = [sections[destination], sections[index]];
+        markDirty();
+        render();
+      }
+      return;
+    }
     if (event.target.closest("[data-remove-avatar]")) {
       removeAvatar();
       return;

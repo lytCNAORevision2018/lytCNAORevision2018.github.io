@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>个人主页管理器</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
@@ -29,6 +30,11 @@
         <button id="shutdown-button" class="button button--quiet" type="button">关闭管理器</button>
       </div>
     </header>
+
+    <div id="publish-notice" class="publish-notice" role="status" hidden>
+      <strong>新版尚未安装到正式版，暂时无法发布</strong>
+      <p>当前打开的是功能预览版，可以编辑并保存草稿。新版完成审核并安装后，重新打开管理器即可同步和发布；已保存的资料与头像无需重填。</p>
+    </div>
 
     <div class="workspace">
       <aside class="sidebar-panel">

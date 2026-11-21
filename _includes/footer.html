@@ -1,19 +1,28 @@
 {% assign content = site.data.site_content %}
+{% include resolved-profile.html %}
+{% assign footer_settings = content.website.text.footer | default: site.data.website_text.footer %}
 
+{% if footer_settings.contactVisible %}
 <div class="page__footer-follow">
   <ul class="social-icons">
-    {% if content.profile.links.github %}
+    {% if content.profile.links.github != blank %}
       <li><a href="{{ content.profile.links.github | escape }}" target="_blank" rel="noopener noreferrer"><i class="fab fa-github" aria-hidden="true"></i> GitHub</a></li>
     {% endif %}
-    {% if content.profile.email %}
-      <li><a href="mailto:{{ content.profile.email | escape }}"><i class="fas fa-envelope" aria-hidden="true"></i> 联系</a></li>
+    {% if profile_email and profile_email != "" %}
+      <li><a href="mailto:{{ profile_email | escape }}"><i class="fas fa-envelope" aria-hidden="true"></i> 联系</a></li>
     {% endif %}
   </ul>
 </div>
+{% endif %}
 
 <div class="page__footer-copyright">
-  &copy; {{ site.time | date: '%Y' }} {{ content.profile.name | default: site.name }}。
-  本站由 <a href="https://jekyllrb.com" rel="nofollow">Jekyll</a> 与
-  <a href="https://github.com/academicpages/academicpages.github.io">Academic Pages</a> 生成。
-  {% if content.meta.lastUpdated %}<br />内容更新于 {{ content.meta.lastUpdated | escape }}{% endif %}
+  {% if footer_settings.copyrightVisible %}<p class="footer-signature">&copy; {{ site.time | date: '%Y' }} {{ profile_name | escape }}。</p>{% endif %}
+  {% if footer_settings.creditsVisible %}<p class="footer-credits">本站由 <a href="https://jekyllrb.com" rel="nofollow">Jekyll</a> 与 <a href="https://github.com/academicpages/academicpages.github.io">Academic Pages</a> 生成。</p>{% endif %}
+  {% assign updated = footer_settings.updated %}
+  {% assign display_date = content.meta.lastUpdated %}
+  {% if updated.mode == "manual" %}{% assign display_date = updated.date %}{% endif %}
+  {% if updated.visible and display_date and display_date != "" %}
+    <p class="footer-updated">{% if updated.label != "" %}{{ updated.label | escape }} {% endif %}<time datetime="{{ display_date | escape }}">{% if updated.format == "chinese" %}{{ display_date | date: "%Y年%-m月%-d日" }}{% else %}{{ display_date | escape }}{% endif %}</time></p>
+  {% endif %}
+  {% if footer_settings.noteVisible and footer_settings.note != "" %}<p class="footer-note">{{ footer_settings.note | escape | newline_to_br }}</p>{% endif %}
 </div>

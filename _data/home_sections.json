@@ -1,0 +1,10 @@
+[
+  {"key":"education","title":"教育经历","description":"","visible":true,"source":"featured","limit":2},
+  {"key":"projects","title":"项目与科研","description":"","visible":true,"source":"featured","limit":3},
+  {"key":"experiences","title":"实习与实践","description":"","visible":true,"source":"featured","limit":3},
+  {"key":"awards","title":"荣誉与奖项","description":"","visible":true,"source":"featured","limit":3},
+  {"key":"talks","title":"分享与讲座","description":"","visible":true,"source":"featured","limit":3},
+  {"key":"notes","title":"笔记与习题","description":"","visible":true,"source":"featured","limit":3},
+  {"key":"outsideResearch","title":"科研学习以外","description":"","visible":true,"source":"featured","limit":3},
+  {"key":"skills","title":"技能","description":"","visible":false,"source":"published","limit":3}
+]

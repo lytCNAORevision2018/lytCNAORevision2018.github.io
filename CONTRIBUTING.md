@@ -9,7 +9,7 @@
 - 公开内容统一写入 `_data/site_content.json`。
 - 本机未公开内容保存在 `.site-manager/draft.json`，不得提交。
 - 尚未正式发布的管理器候选由 `.site-manager/pending-publish.json` 绑定完整 SHA 与远端父提交；不得手改、删除或用手工提交冒充候选。
-- 头像由管理器写入 `images/profile-user.*`；替换或移除成功后，管理器会清理不再使用的扩展版本。
+- 共享头像和网站独立头像分别由管理器写入 `images/profile-user.*` 与 `images/website-profile.*`；替换或移除成功后，管理器会清理不再引用的扩展版本。
 - 讲义 PDF 必须由管理器转换为 `images/talk-documents/` 下的逐页 JPEG。
 - 不要在首页、栏目页和简历模板中重复维护同一份个人资料。
 
@@ -22,6 +22,7 @@
 - `tools/site-manager/` 和 `主页管理器.cmd`。
 - `.github/workflows/`、`scripts/`、`package.json` 和构建配置。
 - `_includes/`、`_layouts/`、`_pages/`、`_sass/`、`assets/` 等站点模板与样式。
+- `_data/home_sections.json`、`_data/website_text.json` 等默认设置定义；用户对首页及说明文字的日常选择写入 `_data/site_content.json`。
 - `README.md`、`维护主页说明.md`、`CONTRIBUTING.md` 等维护文档。
 
 这类变更应在独立分支完成，查看完整 diff，并由另一位维护者或一次独立的人工审查确认后再合并。尤其不能在同一个候选提交中削弱工作流、审计脚本或内容规则，再依赖被修改后的检查为自己放行。

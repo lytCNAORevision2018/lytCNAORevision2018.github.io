@@ -1,0 +1,2 @@
+{% assign intro = site.data.site_content.website.text.pages[include.key] | default: site.data.website_text.pages[include.key] %}
+{% if intro.visible and intro.text != "" %}<p class="page-introduction">{{ intro.text | escape | newline_to_br }}</p>{% endif %}

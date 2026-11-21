@@ -3,6 +3,7 @@
 {% assign managed_title = managed_content.meta.siteTitle | default: site.title %}
 {% assign managed_description = managed_content.meta.description | default: site.description %}
 {% assign managed_profile = managed_content.profile %}
+{% include resolved-profile.html %}
 
 <!-- begin SEO -->
 {% if site.url %}
@@ -83,12 +84,12 @@
   {
     "@context": "https://schema.org",
     "@type": "Person",
-    "name": {{ managed_profile.name | jsonify }},
-    {% if managed_profile.nameEn %}"alternateName": {{ managed_profile.nameEn | jsonify }},{% endif %}
+    "name": {{ profile_name | jsonify }},
+    {% if profile_name_en and profile_name_en != "" %}"alternateName": {{ profile_name_en | jsonify }},{% endif %}
     "url": {{ seo_url | jsonify }},
     "description": {{ managed_description | jsonify }},
-    {% if managed_profile.email %}"email": {{ managed_profile.email | jsonify }},{% endif %}
-    {% if managed_profile.institution %}"affiliation": {"@type": "CollegeOrUniversity", "name": {{ managed_profile.institution | jsonify }}},{% endif %}
+    {% if profile_email and profile_email != "" %}"email": {{ profile_email | jsonify }},{% endif %}
+    {% if profile_institution and profile_institution != "" %}"affiliation": {"@type": "CollegeOrUniversity", "name": {{ profile_institution | jsonify }}},{% endif %}
     "sameAs": [
       {% assign first_social_link = true %}
       {% for social_link in managed_profile.links %}
@@ -135,8 +136,8 @@
   <meta property="og:image" content="{% if page.header.image contains "://" %}{{ page.header.image }}{% else %}{{ page.header.image | prepend: "/images/" | prepend: seo_url }}{% endif %}">
 {% elsif page.header.overlay_image %}
   <meta property="og:image" content="{% if page.header.overlay_image contains "://" %}{{ page.header.overlay_image }}{% else %}{{ page.header.overlay_image | prepend: "/images/" | prepend: seo_url }}{% endif %}">
-{% elsif managed_content.profile.avatar %}
-  <meta property="og:image" content="{% if managed_content.profile.avatar contains "://" %}{{ managed_content.profile.avatar }}{% else %}{{ managed_content.profile.avatar | prepend: "/images/" | prepend: seo_url }}{% endif %}">
+{% elsif profile_avatar and profile_avatar != "" %}
+  <meta property="og:image" content="{% if profile_avatar contains "://" %}{{ profile_avatar }}{% else %}{{ profile_avatar | prepend: "/images/" | prepend: seo_url }}{% endif %}">
 {% elsif site.og_image %}
   <meta property="og:image" content="{{ site.og_image | prepend: "/images/" | prepend: seo_url }}">
 {% endif %}

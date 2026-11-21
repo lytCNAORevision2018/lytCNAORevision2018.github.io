@@ -1,7 +1,7 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateContent } from "../tools/site-manager/lib/content.mjs";
+import { resolvedWebsiteProfile, validateContent } from "../tools/site-manager/lib/content.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
@@ -169,6 +169,10 @@ async function auditSource() {
     const avatarPath = resolve(repositoryRoot, "images", content.profile.avatar);
     if (!(await exists(avatarPath))) fail(`头像文件不存在：images/${content.profile.avatar}`);
   }
+  const websiteAvatar = content.website?.profile?.avatar;
+  if (websiteAvatar && !websiteAvatar.includes("://")) {
+    if (!(await exists(resolve(repositoryRoot, "images", websiteAvatar)))) fail(`网站独立头像文件不存在：images/${websiteAvatar}`);
+  }
   for (const talk of content.talks || []) {
     for (const page of talk.documentPages || []) {
       const pagePath = resolve(repositoryRoot, page.replace(/^\/+/, ""));
@@ -194,6 +198,7 @@ async function auditBuiltSite(siteDirectory) {
     if (!/<meta\b[^>]*charset=["']?utf-8/i.test(html)) fail(`${name} 缺少 UTF-8 charset。`);
     if (/\.pdf(?:$|[/?#&=])/im.test(html)) fail(`${name} 含有 PDF 地址。`);
     if (/\bjavascript\s*:/i.test(html)) fail(`${name} 含有 javascript: 地址。`);
+    if (/<a\b[^>]*\bhref=["']\s*["']/i.test(html)) fail(`${name} 含有空的可点击链接。`);
 
     if (!isRedirect) {
       const title = html.match(/<title>([\s\S]*?)<\/title>/i)?.[1].trim() || "";
@@ -218,7 +223,8 @@ async function auditBuiltSite(siteDirectory) {
           const structuredData = JSON.parse(scriptMatch[1]);
           if (structuredData["@type"] === "Person") {
             hasPersonData = true;
-            if (structuredData.name !== managedContent.profile.name) fail(`${name} 的 Person JSON-LD 姓名与内容源不一致。`);
+            const expectedProfile = documentUrlPath(siteDirectory, path) === "/cv/" ? managedContent.profile : resolvedWebsiteProfile(managedContent);
+            if (structuredData.name !== expectedProfile.name) fail(`${name} 的 Person JSON-LD 姓名与内容源不一致。`);
           }
         } catch {
           fail(`${name} 含有无效的 JSON-LD。`);

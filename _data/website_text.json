@@ -1,0 +1,32 @@
+{
+  "home": {
+    "preferredName": {"visible": true, "label": "常用英文名："},
+    "interests": {"visible": true, "label": "研究兴趣"},
+    "contact": {"visible": true, "label": "联系我"},
+    "cv": {"visible": true, "label": "查看简历"},
+    "github": {"visible": true, "label": "GitHub"},
+    "more": {"visible": true, "label": "查看全部"}
+  },
+  "misc": {
+    "sidebarContact": {"visible": true, "label": "联系方式"},
+    "sitemap": {"visible": true, "label": "站点地图"},
+    "talkNotice": {"visible": true, "label": "讲义已转换为逐页图片，网站不提供原 PDF 文件。"}
+  },
+  "footer": {
+    "contactVisible": true,
+    "copyrightVisible": true,
+    "creditsVisible": true,
+    "noteVisible": true,
+    "note": "",
+    "updated": {"visible": true, "mode": "publish", "date": "", "label": "内容更新于", "format": "iso"}
+  },
+  "pages": {
+    "projects": {"visible": true, "text": "科研项目、竞赛项目与实践成果。"},
+    "experiences": {"visible": true, "text": "实习、社会实践与工程实践经历。"},
+    "awards": {"visible": true, "text": "学习、科研、竞赛与社会实践相关荣誉。"},
+    "talks": {"visible": true, "text": "公开分享、课程汇报与学术讲座记录。"},
+    "notes": {"visible": true, "text": "课程笔记、习题整理与学习资料。"},
+    "outsideResearch": {"visible": true, "text": "学习科研以外的兴趣、活动与记录。"},
+    "cv": {"visible": true, "text": "教育、项目、实践与荣誉经历。"}
+  }
+}

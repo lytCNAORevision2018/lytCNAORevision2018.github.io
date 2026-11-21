@@ -1,0 +1,46 @@
+name: Validate website content
+
+on:
+  push:
+    branches:
+      - master
+      - "site-manager-validation/**"
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Test content rules
+        run: node scripts/test-content.mjs
+
+      - name: Test site manager transactions
+        run: node scripts/test-site-manager.mjs
+
+      - name: Validate managed content
+        run: node scripts/validate-content.mjs
+
+      - name: Audit source files
+        run: node scripts/audit-site.mjs --source
+
+      - name: Build Jekyll site
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./
+          destination: ./_site
+
+      - name: Audit built site
+        run: node scripts/audit-site.mjs --site _site

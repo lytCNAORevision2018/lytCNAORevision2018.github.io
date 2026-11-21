@@ -1,10 +1,10 @@
 ---
-permalink: /notes-exercises/
-title: "个人笔记与习题"
+permalink: /notes/
+title: "笔记与习题"
+description: "课程笔记、习题整理与学习资料。"
 author_profile: true
-layout : archive
-
+redirect_from:
+  - /notes-exercises/
 ---
-
-**本页面待更新。**
-2025年12月8日
+{% assign data = site.data.site_content %}
+{% include content/section.html id="notes" title="全部内容" items=data.notes %}

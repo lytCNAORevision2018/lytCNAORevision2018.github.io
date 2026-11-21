@@ -1,10 +1,10 @@
 ---
-permalink: /talks-presentations/
-title: "分享、汇报与讲座"
+permalink: /talks/
+title: "分享与讲座"
+description: "公开分享、课程汇报与学术讲座记录。"
 author_profile: true
-layout : archive
-
+redirect_from:
+  - /talks-presentations/
 ---
-
-**本页面内容待更新。**
-2025年12月8日写
+{% assign data = site.data.site_content %}
+{% include content/section.html id="talks" title="全部分享" items=data.talks show_documents=true %}

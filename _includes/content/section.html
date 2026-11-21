@@ -1,0 +1,17 @@
+{% assign items = include.items | where: "published", true %}
+{% if items.size > 0 %}
+  <section class="profile-section" aria-labelledby="section-{{ include.id }}">
+    <div class="profile-section__heading">
+      <div>
+        <h2 id="section-{{ include.id }}">{{ include.title | escape }}</h2>
+        {% if include.description %}<p>{{ include.description | escape }}</p>{% endif %}
+      </div>
+      {% if include.href %}<a class="profile-section__more" href="{{ include.href }}">查看全部</a>{% endif %}
+    </div>
+    <div class="content-list">
+      {% for item in items %}
+        {% include content/entry.html item=item show_document=include.show_documents %}
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}

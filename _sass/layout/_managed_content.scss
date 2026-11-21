@@ -1,0 +1,338 @@
+/* Data-driven profile pages and entries. */
+
+.home-intro {
+  margin-bottom: 2.5rem;
+  padding: 0.25rem 0 0.25rem 1.25rem;
+  border-left: 4px solid var(--global-link-color);
+}
+
+.home-intro__name {
+  margin: 0;
+  font-size: $type-size-2;
+  line-height: 1.25;
+}
+
+.home-intro__name span {
+  font-weight: 500;
+}
+
+.home-intro__preferred,
+.home-intro__motto {
+  margin: 0.55rem 0 0;
+  color: var(--global-text-color-light);
+  font-size: $type-size-6;
+}
+
+.home-intro__motto {
+  font-family: $serif;
+}
+
+.home-intro__headline {
+  margin: 0;
+  color: var(--global-text-color);
+  font-size: $type-size-4;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.home-intro__summary {
+  max-width: 48rem;
+  margin: 0.75rem 0 0;
+  font-size: $type-size-5;
+  line-height: 1.75;
+}
+
+.home-intro__interests {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  font-size: $type-size-6;
+}
+
+.home-intro__interests > span {
+  flex: 0 0 auto;
+  padding-top: 0.2rem;
+  color: var(--global-text-color-light);
+}
+
+.home-intro__interests ul,
+.content-entry__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-intro__interests li,
+.content-entry__tags li {
+  padding: 0.18rem 0.55rem;
+  border: 1px solid var(--global-border-color);
+  border-radius: 4px;
+  font-size: $type-size-7;
+  line-height: 1.4;
+}
+
+.home-intro__actions,
+.content-entry__links,
+.cv-summary__contact {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.1rem;
+}
+
+.home-intro__actions a,
+.content-entry__links a,
+.cv-summary__contact a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--global-border-color);
+  border-radius: 4px;
+  color: var(--global-text-color);
+  font-size: $type-size-6;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.home-intro__actions a:hover,
+.content-entry__links a:hover,
+.cv-summary__contact a:hover {
+  border-color: var(--global-link-color);
+  color: var(--global-link-color);
+}
+
+.profile-section {
+  margin: 0 0 2.75rem;
+}
+
+.profile-section__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 2px solid var(--global-border-color);
+}
+
+.profile-section__heading h2 {
+  margin: 0;
+  border: 0;
+  font-size: $type-size-3;
+}
+
+.profile-section__heading p {
+  margin: 0.3rem 0 0;
+  color: var(--global-text-color-light);
+  font-size: $type-size-6;
+}
+
+.profile-section__more {
+  flex: 0 0 auto;
+  padding-bottom: 0.15rem;
+  font-size: $type-size-6;
+  white-space: nowrap;
+}
+
+.content-list {
+  margin: 0;
+}
+
+.content-entry {
+  padding: 1.15rem 0 1.25rem;
+  border-bottom: 1px solid var(--global-border-color);
+}
+
+.content-entry__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.content-entry__title {
+  margin: 0;
+  font-size: $type-size-4;
+  line-height: 1.4;
+}
+
+.content-entry__role,
+.content-entry__date,
+.content-entry__meta,
+.content-entry__summary {
+  margin: 0.35rem 0 0;
+}
+
+.content-entry__role {
+  color: var(--global-link-color);
+  font-weight: 600;
+}
+
+.content-entry__date {
+  flex: 0 0 auto;
+  color: var(--global-text-color-light);
+  font-size: $type-size-6;
+  white-space: nowrap;
+}
+
+.content-entry__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0;
+  color: var(--global-text-color-light);
+  font-size: $type-size-6;
+}
+
+.content-entry__meta span:not(:last-child)::after {
+  content: " / ";
+  margin-right: 0.35rem;
+  color: var(--global-border-color);
+}
+
+.content-entry__summary {
+  line-height: 1.7;
+}
+
+.content-entry__highlights {
+  margin: 0.65rem 0 0;
+}
+
+.content-entry__tags {
+  margin-top: 0.8rem;
+}
+
+.talk-document {
+  margin-top: 1rem;
+  border-top: 1px solid var(--global-border-color);
+  padding-top: 0.85rem;
+}
+
+.talk-document summary {
+  color: var(--global-link-color);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.talk-document__notice {
+  margin: 0.65rem 0;
+  color: var(--global-text-color-light);
+  font-size: $type-size-6;
+}
+
+.talk-document__pages {
+  display: grid;
+  gap: 1rem;
+}
+
+.talk-document__pages figure {
+  margin: 0;
+}
+
+.talk-document__pages img {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--global-border-color);
+  background: #fff;
+  user-select: none;
+}
+
+.talk-document__pages figcaption {
+  margin-top: 0.3rem;
+  color: var(--global-text-color-light);
+  font-size: $type-size-7;
+  text-align: center;
+}
+
+.cv-summary {
+  margin-bottom: 2.25rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid var(--global-border-color);
+}
+
+.cv-summary__name {
+  margin: 0;
+  font-size: $type-size-3;
+  font-weight: 700;
+}
+
+.author__name span {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.82em;
+  font-weight: 500;
+}
+
+.author__avatar-fallback {
+  display: grid;
+  width: 100%;
+  max-width: 175px;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid var(--global-border-color);
+  border-radius: 50%;
+  background: var(--global-footer-bg-color);
+  color: var(--global-text-color);
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+@media (max-width: 57.8125em) {
+  .author__avatar-fallback {
+    width: 36px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 40em) {
+  .home-intro {
+    padding-left: 0.9rem;
+  }
+
+  .home-intro__name {
+    font-size: $type-size-3;
+  }
+
+  .home-intro__interests,
+  .profile-section__heading,
+  .content-entry__header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .content-entry__date {
+    white-space: normal;
+  }
+}
+
+@media print {
+  .masthead,
+  .sidebar,
+  .page__footer,
+  .profile-section__more,
+  .home-intro__actions {
+    display: none !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0 !important;
+  }
+
+  #main,
+  .page,
+  .page__inner-wrap {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .content-entry {
+    break-inside: avoid;
+  }
+}

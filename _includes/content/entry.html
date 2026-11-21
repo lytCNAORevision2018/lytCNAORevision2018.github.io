@@ -1,0 +1,67 @@
+{% assign item = include.item %}
+<article class="content-entry">
+  <header class="content-entry__header">
+    <div>
+      <h3 class="content-entry__title">{{ item.title | escape }}</h3>
+      {% if item.role %}<p class="content-entry__role">{{ item.role | escape }}</p>{% endif %}
+    </div>
+    {% if item.period or item.date %}
+      <p class="content-entry__date">{{ item.period | default: item.date | escape }}</p>
+    {% endif %}
+  </header>
+
+  {% if item.institution or item.organization or item.department or item.event or item.issuer or item.location or item.level %}
+    <p class="content-entry__meta">
+      {% if item.institution %}<span>{{ item.institution | escape }}</span>{% endif %}
+      {% if item.organization %}<span>{{ item.organization | escape }}</span>{% endif %}
+      {% if item.department %}<span>{{ item.department | escape }}</span>{% endif %}
+      {% if item.event %}<span>{{ item.event | escape }}</span>{% endif %}
+      {% if item.issuer %}<span>{{ item.issuer | escape }}</span>{% endif %}
+      {% if item.location %}<span>{{ item.location | escape }}</span>{% endif %}
+      {% if item.level %}<span>{{ item.level | escape }}</span>{% endif %}
+    </p>
+  {% endif %}
+
+  {% if item.summary %}<p class="content-entry__summary">{{ item.summary | escape }}</p>{% endif %}
+
+  {% if item.highlights and item.highlights.size > 0 %}
+    <ul class="content-entry__highlights">
+      {% for highlight in item.highlights %}
+        {% if highlight != "" %}<li>{{ highlight | escape }}</li>{% endif %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if item.tags and item.tags.size > 0 %}
+    <ul class="content-entry__tags" aria-label="标签">
+      {% for tag in item.tags %}
+        {% if tag != "" %}<li>{{ tag | escape }}</li>{% endif %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if item.links and item.links.size > 0 %}
+    <div class="content-entry__links">
+      {% for link in item.links %}
+        {% if link.label and link.url %}
+          <a href="{{ link.url | escape }}"{% if link.url contains "://" %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ link.label | escape }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if include.show_document and item.documentPages and item.documentPages.size > 0 %}
+    <details class="talk-document">
+      <summary>在线查看讲义（{{ item.documentPages.size }} 页）</summary>
+      <p class="talk-document__notice">讲义已转换为逐页图片，网站不提供原 PDF 文件。</p>
+      <div class="talk-document__pages">
+        {% for page in item.documentPages %}
+          <figure>
+            <img src="{{ page | relative_url }}" alt="{{ item.title | escape }} - 第 {{ forloop.index }} 页" loading="lazy" draggable="false" />
+            <figcaption>第 {{ forloop.index }} 页</figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}
+</article>

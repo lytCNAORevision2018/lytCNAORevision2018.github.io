@@ -1,16 +1,11 @@
 ---
-permalink: /research-competitions/
-title: "个人科研竞赛项目"
+permalink: /projects/
+title: "项目与科研"
+description: "科研项目、竞赛项目与实践成果。"
 author_profile: true
-layout : archive
-
+redirect_from:
+  - /research-competitions/
 ---
-
-# 个人科研项目
-
-# 个人科研成果
-
-# 个人实践项目
-
-**本页面内容待更新。** 2025年12月8日
+{% assign data = site.data.site_content %}
+{% include content/section.html id="projects" title="全部项目" items=data.projects %}
 

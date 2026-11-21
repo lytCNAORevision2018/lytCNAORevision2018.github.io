@@ -1,64 +1,25 @@
 ---
-layout: archive
-title: "CV"
+title: "个人简历"
 permalink: /cv/
+description: "教育、项目、实践与荣誉经历。"
 author_profile: true
 redirect_from:
-  - /resume
+  - /resume/
 ---
+{% assign data = site.data.site_content %}
 
-{% include base_path %}
+<div class="cv-summary">
+  <p class="cv-summary__name">{{ data.profile.name | escape }}{% if data.profile.nameEn %} / {{ data.profile.nameEn | escape }}{% endif %}</p>
+  <p>{{ data.profile.headline | escape }}</p>
+  <p>{{ data.profile.summary | escape }}</p>
+  <div class="cv-summary__contact">
+    {% if data.profile.email %}<a href="mailto:{{ data.profile.email | escape }}">{{ data.profile.email | escape }}</a>{% endif %}
+  </div>
+</div>
 
-Education
-======
-* Ph.D in Version Control Theory, GitHub University, 2018 (expected)
-* M.S. in Jekyll, GitHub University, 2014
-* B.S. in GitHub, GitHub University, 2012
-
-Work experience
-======
-* Spring 2024: Academic Pages Collaborator
-  * GitHub University
-  * Duties includes: Updates and improvements to template
-  * Supervisor: The Users
-
-* Fall 2015: Research Assistant
-  * GitHub University
-  * Duties included: Merging pull requests
-  * Supervisor: Professor Hub
-
-* Summer 2015: Research Assistant
-  * GitHub University
-  * Duties included: Tagging issues
-  * Supervisor: Professor Git
-  
-Skills
-======
-* Skill 1
-* Skill 2
-  * Sub-skill 2.1
-  * Sub-skill 2.2
-  * Sub-skill 2.3
-* Skill 3
-
-Publications
-======
-  <ul>{% for post in site.publications reversed %}
-    {% include archive-single-cv.html %}
-  {% endfor %}</ul>
-  
-Talks
-======
-  <ul>{% for post in site.talks reversed %}
-    {% include archive-single-talk-cv.html  %}
-  {% endfor %}</ul>
-  
-Teaching
-======
-  <ul>{% for post in site.teaching reversed %}
-    {% include archive-single-cv.html %}
-  {% endfor %}</ul>
-  
-Service and leadership
-======
-* Currently signed in to 43 different slack teams
+{% include content/section.html id="cv-education" title="教育经历" items=data.education %}
+{% include content/section.html id="cv-projects" title="项目与科研" items=data.projects %}
+{% include content/section.html id="cv-experiences" title="实习与实践" items=data.experiences %}
+{% include content/section.html id="cv-awards" title="荣誉与奖项" items=data.awards %}
+{% include content/section.html id="cv-skills" title="技能" items=data.skills %}
+{% include content/section.html id="cv-talks" title="分享与讲座" items=data.talks %}

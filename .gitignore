@@ -19,5 +19,12 @@ package-lock.json
 # Ignore folders related to IDEs
 .vscode/
 
+# Local drafts and state created by the one-click site manager
+.site-manager/
+
+# Original PDFs are never committed; lecture PDFs are converted to page images locally
+*.pdf
+tmp/
+
 # Ignore files created by MacOS
 .DS_Store

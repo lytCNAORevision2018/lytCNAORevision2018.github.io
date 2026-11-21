@@ -1,27 +1,24 @@
 {
-  "name": "academic-pages",
-  "version": "0.8.1.1",
-  "description": "Academic Pages Mistakes Jekyll theme npm build scripts",
+  "name": "yutong-li-personal-site",
+  "version": "1.0.0",
+  "description": "Yutong Li's data-driven personal website and local maintenance tool",
   "repository": {
     "type": "git",
-    "url": "https://github.com/academicpages/academicpages.github.io"
+    "url": "https://github.com/lytCNAORevision2018/lytCNAORevision2018.github.io"
   },
   "keywords": [
     "jekyll",
     "theme",
     "minimal"
   ],
-  "contributors": [
-    "Michael Rose",
-    "Robert Zupko"
-  ],
+  "contributors": ["Yutong Li"],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/academicpages/academicpages.github.io/issues"
+    "url": "https://github.com/lytCNAORevision2018/lytCNAORevision2018.github.io/issues"
   },
-  "homepage": "https://github.com/academicpages/academicpages.github.io",
+  "homepage": "https://lytcnaorevision2018.github.io/",
   "engines": {
-    "node": ">= 0.10.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "fitvids": "^2.1.1",
@@ -34,6 +31,12 @@
     "uglify-js": "^3.17.4"
   },
   "scripts": {
+    "test": "node scripts/test-content.mjs && node scripts/test-site-manager.mjs",
+    "test:content": "node scripts/test-content.mjs",
+    "test:site-manager": "node scripts/test-site-manager.mjs",
+    "validate:content": "node scripts/validate-content.mjs",
+    "audit:source": "node scripts/audit-site.mjs --source",
+    "audit:site": "node scripts/audit-site.mjs --site _site",
     "uglify": "uglifyjs node_modules/jquery/dist/jquery.min.js node_modules/fitvids/dist/fitvids.min.js node_modules/jquery-smooth-scroll/jquery.smooth-scroll.min.js node_modules/plotly.js-dist-min/plotly.min.js assets/js/plugins/jquery.greedy-navigation.js assets/js/_main.js -c -m -o assets/js/main.min.js",
     "watch:js": "onchange \"assets/js/**/*.js\" -e \"assets/js/main.min.js\" -- npm run build:js",
     "build:js": "npm run uglify"

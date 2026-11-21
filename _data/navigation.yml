@@ -1,46 +1,29 @@
-# The following is the order of the links in the header of the website.
-#
-# Changing the order here will adjust the order and you can also add additional
-# links. Removing a link prevents it from showing in the header, but does not
-# prevent it from being included in the site.
-#
-# NOTE that only one of the CV options should be selected, the first is for the
-#      Markdown formatted page while the second is generated using JSON.
-
+# `section` 对应 _data/site_content.json 中的数组。
+# 当该数组没有已发布条目时，导航项会自动隐藏。
 main:
-  - title: "个人简历"
-    url: /cv/
+  - title: "项目与科研"
+    url: /projects/
+    section: projects
 
-#  - title: "Publications"
-#   url: /publications/
-  - title: "实习实践"
-    url: /interships/
-    
-  - title: "科研竞赛"
-    url: /research-competitions/
-    
-  - title: "荣誉奖项"
-    url: /honors-awards/    
+  - title: "实习与实践"
+    url: /experience/
+    section: experiences
 
-#  - title: "Teaching"
-#    url: /teaching/    
+  - title: "荣誉与奖项"
+    url: /awards/
+    section: awards
+
   - title: "分享与讲座"
-    url: /talks-presentations/
+    url: /talks/
+    section: talks
 
   - title: "笔记与习题"
-    url: /notes-exercises/
-   
+    url: /notes/
+    section: notes
+
   - title: "科研学习以外"
-    url: /outside-research/
-        
-  - title: "记事"
-    url: /year-archive/
-    
-#  - title: "CV"
-#    url: /cv/
-    
-  # - title: "CV"
-  #   url: /cv-json/
-    
-  - title: "索引"
-    url: /markdown/
+    url: /outside/
+    section: outsideResearch
+
+  - title: "个人简历"
+    url: /cv/

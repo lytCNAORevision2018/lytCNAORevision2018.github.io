@@ -1,28 +1,56 @@
 ---
 permalink: /
-title: "欢迎来到我的个人主页！"
+title: "个人主页"
+hide_title: true
 author_profile: true
-redirect_from: 
+redirect_from:
   - /about/
   - /about.html
 ---
-# 个人基本情况
-## 基本信息
-XXX，男，汉族，共青团员。
-## 学业情况
-**2026年9月-2029年6月（预计）**：苏州大学轨道交通学院交通运输工程专业交通运输规划与管理方向学术学位硕士研究生，推荐免试。
+{% assign data = site.data.site_content %}
 
-**2022年9月-2026年6月**：苏州大学轨道交通学院交通运输专业本科学习。
-# 实习实践经历
-本部分预留。(251208写)
-# 科研竞赛项目
-本部分预留。(251208写)
-# 奖励与荣誉称号
-本部分预留。(251208写)
+<div class="home-intro">
+  <h1 class="home-intro__name">{{ data.profile.name | escape }}{% if data.profile.nameEn %}<span> / {{ data.profile.nameEn | escape }}</span>{% endif %}</h1>
+  {% if data.profile.preferredName %}<p class="home-intro__preferred">常用英文名：{{ data.profile.preferredName | escape }}</p>{% endif %}
+  <p class="home-intro__headline">{{ data.profile.headline | escape }}</p>
+  <p class="home-intro__summary">{{ data.profile.summary | escape }}</p>
+  {% if data.profile.motto %}<p class="home-intro__motto">{{ data.profile.motto | escape }}</p>{% endif %}
 
-# 关于本模板 
-本模板来自于 [Academic Pages template](https://github.com/academicpages/academicpages.github.io) 。在此对原作者表示感谢。
+  {% if data.profile.researchInterests and data.profile.researchInterests.size > 0 %}
+    <div class="home-intro__interests" aria-label="研究兴趣">
+      <span>研究兴趣</span>
+      <ul>
+        {% for interest in data.profile.researchInterests %}
+          {% if interest != "" %}<li>{{ interest | escape }}</li>{% endif %}
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
 
-2026年1月起，本个人主页原则上每月朔望日或逢节气更新调整。
+  <div class="home-intro__actions">
+    {% if data.profile.email %}<a href="mailto:{{ data.profile.email | escape }}">联系我</a>{% endif %}
+    <a href="{{ base_path }}/cv/">查看简历</a>
+    {% if data.profile.links.github %}<a href="{{ data.profile.links.github | escape }}" target="_blank" rel="noopener noreferrer">GitHub</a>{% endif %}
+  </div>
+</div>
 
-最后更新：2025年12月8日。
+{% assign education = data.education | where: "featured", true %}
+{% include content/section.html id="education" title="教育经历" items=education %}
+
+{% assign projects = data.projects | where: "featured", true %}
+{% include content/section.html id="projects" title="代表项目与科研" description="近期具有代表性的项目、研究与竞赛经历。" items=projects href="/projects/" %}
+
+{% assign experiences = data.experiences | where: "featured", true %}
+{% include content/section.html id="experiences" title="实习与实践" items=experiences href="/experience/" %}
+
+{% assign awards = data.awards | where: "featured", true %}
+{% include content/section.html id="awards" title="荣誉与奖项" items=awards href="/awards/" %}
+
+{% assign talks = data.talks | where: "featured", true %}
+{% include content/section.html id="talks" title="分享与讲座" items=talks href="/talks/" %}
+
+{% assign notes = data.notes | where: "featured", true %}
+{% include content/section.html id="notes" title="笔记与习题" items=notes href="/notes/" %}
+
+{% assign outside = data.outsideResearch | where: "featured", true %}
+{% include content/section.html id="outside" title="科研学习以外" items=outside href="/outside/" %}

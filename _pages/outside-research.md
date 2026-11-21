@@ -1,10 +1,10 @@
 ---
-permalink: /outside-research/
+permalink: /outside/
 title: "科研学习以外"
+description: "学习科研以外的兴趣、活动与记录。"
 author_profile: true
-layout : archive
-
+redirect_from:
+  - /outside-research/
 ---
-
-**本页面待更新。**
-2025年12月8日
+{% assign data = site.data.site_content %}
+{% include content/section.html id="outside" title="全部记录" items=data.outsideResearch %}

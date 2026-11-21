@@ -1,13 +1,10 @@
 ---
-permalink: /honors-awards/
-title: "个人荣誉奖项获奖情况"
+permalink: /awards/
+title: "荣誉与奖项"
+description: "学习、科研、竞赛与社会实践相关荣誉。"
 author_profile: true
-layout: archive
-
+redirect_from:
+  - /honors-awards/
 ---
-## 硕士研究生阶段各荣誉奖项获奖情况
-
-## 本科阶段各荣誉奖项获奖情况
-
-**本页面内容待更新。**
-2025年12月8日
+{% assign data = site.data.site_content %}
+{% include content/section.html id="awards" title="全部荣誉" items=data.awards %}

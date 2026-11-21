@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "meta": {
+    "siteTitle": "李雨桐 | Yutong Li",
+    "description": "欢迎来到本人的个人主页。",
+    "siteUrl": "https://lytcnaorevision2018.github.io/",
+    "lastUpdated": "2026-11-21"
+  },
+  "profile": {
+    "name": "李雨桐",
+    "nameEn": "Yutong Li",
+    "preferredName": "Andrew Li",
+    "pronouns": "他 / He/Him",
+    "headline": "交通运输规划与管理方向硕士研究生",
+    "summary": "苏州大学交通运输专业本科毕业，推荐免试攻读交通运输工程专业交通运输规划与管理方向学术学位硕士研究生。",
+    "motto": "东风上韶山，和谐向复兴",
+    "institution": "苏州大学",
+    "location": "江苏省苏州市 / 黑龙江省佳木斯市",
+    "email": "twahzlixuanyuan@163.com",
+    "avatar": "profile-user.png",
+    "researchInterests": [
+      "交通运输规划与管理",
+      "交通规划中的数学方法"
+    ],
+    "links": {
+      "github": "https://github.com/lytCNAORevision2018",
+      "kaggle": "",
+      "bluesky": "",
+      "googleScholar": "",
+      "orcid": "",
+      "linkedin": ""
+    }
+  },
+  "education": [
+    {
+      "id": "suda-master-2026",
+      "title": "学术学位硕士研究生",
+      "institution": "苏州大学",
+      "department": "轨道交通学院",
+      "period": "2026.09 - 2029.06（预计）",
+      "summary": "交通运输工程专业，交通运输规划与管理方向，推荐免试。",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "featured": true,
+      "published": true
+    },
+    {
+      "id": "suda-bachelor-2022",
+      "title": "本科",
+      "institution": "苏州大学",
+      "department": "轨道交通学院",
+      "period": "2022.09 - 2026.06",
+      "summary": "交通运输专业。",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "featured": true,
+      "published": true
+    }
+  ],
+  "projects": [],
+  "experiences": [],
+  "awards": [
+    {
+      "id": "awards-mwq3ha2r",
+      "title": "2026届苏州大学优秀毕业生",
+      "summary": "依据：关于表彰苏州大学2026届本科优秀毕业生的决定（苏大学〔2026〕28号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": true,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "",
+      "date": "2026年6月"
+    },
+    {
+      "id": "awards-mwq3i24k",
+      "title": "2024-2025学年度 苏州大学学习优秀二等奖学金",
+      "summary": "依据：关于表彰苏州大学2024-2025学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2026〕20号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": true,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级二等奖学金",
+      "date": "2025年12月"
+    },
+    {
+      "id": "awards-mwq3javo",
+      "title": "2024-2025学年度 苏州大学创新创业一等奖学金",
+      "summary": "依据：关于表彰苏州大学2024-2025学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2026〕20号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": true,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级一等奖学金",
+      "date": "2025年12月"
+    },
+    {
+      "id": "awards-mwq3kh70",
+      "title": "2023-2024学年度 苏州大学学习优秀特等奖学金",
+      "summary": "依据：关于表彰苏州大学2023-2024学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2025〕2号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": true,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级特等奖学金",
+      "date": "2024年12月"
+    },
+    {
+      "id": "awards-mwq3lxjg",
+      "title": "2023-2024学年度 苏州大学综合奖学金",
+      "summary": "依据：关于表彰苏州大学2023-2024学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2025〕2号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": true,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级综合奖学金",
+      "date": "2024年12月"
+    },
+    {
+      "id": "awards-mwq3nhfg",
+      "title": "2023-2024学年度 苏州大学精神文明奖学金",
+      "summary": "依据：关于表彰苏州大学2023-2024学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2025〕2号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": true,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级精神文明奖学金",
+      "date": "2024年12月"
+    }
+  ],
+  "talks": [],
+  "notes": [],
+  "outsideResearch": [],
+  "skills": []
+}

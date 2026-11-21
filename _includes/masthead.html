@@ -3,20 +3,25 @@
 <div class="masthead">
   <div class="masthead__inner-wrap">
     <div class="masthead__menu">
-      <nav id="site-nav" class="greedy-nav">
-        <button><span class="navicon"></span></button>
+      <nav id="site-nav" class="greedy-nav" aria-label="主导航">
+        <button type="button" aria-label="展开导航菜单"><span class="navicon" aria-hidden="true"></span></button>
         <ul class="visible-links">
-          <li class="masthead__menu-item masthead__menu-item--lg persist"><a href="{{ base_path }}/">{{ site.title }}</a></li>
+          <li class="masthead__menu-item masthead__menu-item--lg persist"><a href="{{ base_path }}/">{{ site.data.site_content.meta.siteTitle | default: site.title }}</a></li>
           {% for link in site.data.navigation.main %}
             {% if link.url contains 'http' %}
               {% assign domain = '' %}
             {% else %}
               {% assign domain = base_path %}
             {% endif %}
-            <li class="masthead__menu-item"><a href="{{ domain }}{{ link.url }}">{{ link.title }}</a></li>
+            {% assign show_link = true %}
+            {% if link.section %}
+              {% assign section_items = site.data.site_content[link.section] | where: "published", true %}
+              {% if section_items.size == 0 %}{% assign show_link = false %}{% endif %}
+            {% endif %}
+            {% if show_link %}<li class="masthead__menu-item"><a href="{{ domain }}{{ link.url }}">{{ link.title }}</a></li>{% endif %}
           {% endfor %}
           <li id="theme-toggle" class="masthead__menu-item persist tail">
-            <a role="button" aria-labelledby="theme-icon"><i id="theme-icon" class="fa-solid fa-sun" aria-hidden="true" title="toggle theme"></i></a>
+            <a role="button" aria-label="切换明暗主题"><i id="theme-icon" class="fa-solid fa-sun" aria-hidden="true"></i></a>
           </li>
         </ul>
         <ul class="hidden-links hidden"></ul>

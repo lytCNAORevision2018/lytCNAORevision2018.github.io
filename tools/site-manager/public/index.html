@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>个人主页管理器</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <div id="session-error" class="session-error" hidden>
+    <h1>管理器会话无效</h1>
+    <p>请关闭本页面，重新双击“主页管理器.cmd”。</p>
+  </div>
+
+  <div id="app" class="app-shell" hidden>
+    <header class="topbar">
+      <div class="topbar__identity">
+        <p class="topbar__title">个人主页管理器</p>
+        <div class="status-line">
+          <span id="draft-status" class="status-badge">正在载入</span>
+          <span id="git-status" class="status-text"></span>
+        </div>
+      </div>
+      <div class="topbar__actions">
+        <a id="open-site" class="button button--quiet" href="https://lytcnaorevision2018.github.io/" target="_blank" rel="noopener noreferrer">查看网站</a>
+        <button id="sync-button" class="button button--quiet" type="button">同步云端</button>
+        <button id="save-button" class="button button--secondary" type="button">保存草稿</button>
+        <button id="publish-button" class="button button--primary" type="button">发布到云端</button>
+        <button id="shutdown-button" class="button button--quiet" type="button">关闭管理器</button>
+      </div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar-panel">
+        <nav id="section-nav" aria-label="内容栏目"></nav>
+      </aside>
+      <main id="editor" class="editor" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <dialog id="item-dialog" class="dialog dialog--editor">
+    <form id="item-form" method="dialog">
+      <div class="dialog__header">
+        <div>
+          <p id="item-dialog-eyebrow" class="dialog__eyebrow"></p>
+          <h2 id="item-dialog-title">编辑条目</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button>
+      </div>
+      <div id="item-form-fields" class="dialog__body"></div>
+      <div class="dialog__footer">
+        <button class="button button--quiet" type="button" data-close-dialog>取消</button>
+        <button class="button button--primary" type="submit">保存条目</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="publish-dialog" class="dialog dialog--confirm">
+    <form id="publish-form" method="dialog">
+      <div class="dialog__header">
+        <div>
+          <p class="dialog__eyebrow">GitHub Pages</p>
+          <h2>确认发布</h2>
+        </div>
+        <button class="icon-button" type="button" data-close-publish aria-label="关闭">×</button>
+      </div>
+      <div class="dialog__body">
+        <p id="publish-summary"></p>
+        <p class="dialog__note">管理器会先推送一次性验证分支，等待 GitHub 完成 Jekyll 构建与成品审计；只有验证通过后才会更新 master。该过程通常需要数分钟。</p>
+        <label class="field">
+          <span>提交说明</span>
+          <input id="commit-message" type="text" maxlength="100">
+        </label>
+      </div>
+      <div class="dialog__footer">
+        <button class="button button--quiet" type="button" data-close-publish>取消</button>
+        <button class="button button--primary" type="submit">确认并验证发布</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <script src="/app.js"></script>
+</body>
+</html>

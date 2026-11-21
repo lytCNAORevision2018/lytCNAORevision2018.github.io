@@ -445,17 +445,15 @@
     }
     if (field.type === "talkPdf") {
       const pages = Array.isArray(value) ? value : [];
-      const pdfAvailable = state.pdfTools?.available !== false;
       return `<div class="field field--wide talk-pdf-field">
         <span>${escapeHtml(field.label)}</span>
+        <label class="field"><span>公开展示方式</span><select id="talk-document-mode"><option value="images">逐页图片</option><option value="pdf">原 PDF（可打开、下载）</option></select></label>
         <div class="talk-pdf-actions">
-          <label id="talk-pdf-upload-label" class="button button--secondary${pdfAvailable ? "" : " button--disabled"}" aria-disabled="${pdfAvailable ? "false" : "true"}">选择 PDF 并转为页面图片<input id="talk-pdf-upload" type="file" accept="application/pdf,.pdf"${pdfAvailable ? "" : " disabled"} hidden></label>
+          <label id="talk-pdf-upload-label" class="button button--secondary"><span id="talk-pdf-upload-text">选择 PDF</span><input id="talk-pdf-upload" type="file" accept="application/pdf,.pdf" hidden></label>
           <button class="button button--quiet button--danger" type="button" data-remove-talk-pdf${pages.length ? "" : " hidden"}>移除讲义</button>
         </div>
-        <p id="talk-pdf-status" class="field-help">${pdfAvailable
-          ? (pages.length ? `已转换 ${pages.length} 页。发布时只上传页面图片，不上传原 PDF。` : "原 PDF 会在本机临时处理，转换结束后删除，不会上传到 GitHub。")
-          : escapeHtml(state.pdfTools.message)}</p>
-        <label id="talk-pdf-confirm-row" class="talk-pdf-confirm" hidden><input id="talk-pdf-confirm" type="checkbox">我已逐页检查字体、缺字、裁切和版式</label>
+        <p id="talk-pdf-status" class="field-help"></p>
+        <label id="talk-pdf-confirm-row" class="talk-pdf-confirm" hidden><input id="talk-pdf-confirm" type="checkbox"><span id="talk-pdf-confirm-text">我已检查讲义内容和版式</span></label>
         <div id="talk-pdf-preview" class="talk-pdf-preview"></div>
       </div>`;
     }
@@ -518,7 +516,13 @@
   function renderTalkPdfPreview() {
     const container = document.querySelector("#talk-pdf-preview");
     if (!container || !state.editing) return;
-    const pages = state.editing.item.documentPages || [];
+    const item = state.editing.item;
+    if (item.documentMode === "pdf") {
+      const url = item.documentPdf ? talkDocumentPreviewUrl(item.documentPdf) : "";
+      container.innerHTML = url ? `<div class="talk-pdf-original"><a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">打开原 PDF 预览</a><object data="${escapeHtml(url)}" type="application/pdf" aria-label="原 PDF 预览"><p>如未显示预览，请点击上方链接。</p></object></div>` : "";
+      return;
+    }
+    const pages = item.documentPages || [];
     container.innerHTML = pages.map((page, index) => {
       const parts = page.replace(/^\/images\/talk-documents\//, "").split("/");
       if (parts.length !== 3) return "";
@@ -527,13 +531,35 @@
     }).join("");
   }
 
+  function talkDocumentPreviewUrl(file) {
+    const parts = file.replace(/^\/images\/talk-documents\//, "").split("/");
+    return parts.length === 3 ? `/preview/talk-documents/${parts.map(encodeURIComponent).join("/")}?token=${encodeURIComponent(token)}` : "";
+  }
+
   function updateTalkPdfControls() {
     if (!state.editing) return;
-    const pages = state.editing.item.documentPages || [];
+    const item = state.editing.item;
+    const pages = item.documentPages || [];
+    const mode = item.documentMode || "images";
+    const selector = document.querySelector("#talk-document-mode");
+    if (!selector) return;
+    selector.value = mode;
+    const unavailable = mode === "images" && state.pdfTools?.available === false;
+    const disabled = state.editing.uploading || unavailable;
+    const uploadLabel = document.querySelector("#talk-pdf-upload-label");
+    uploadLabel.classList.toggle("button--disabled", disabled);
+    uploadLabel.setAttribute("aria-disabled", String(disabled));
+    document.querySelector("#talk-pdf-upload").disabled = disabled;
+    document.querySelector("#talk-pdf-upload-text").textContent = mode === "pdf" ? "选择原 PDF" : "选择 PDF 并生成图片";
+    const status = document.querySelector("#talk-pdf-status");
+    if (!state.editing.uploading) status.textContent = mode === "pdf"
+      ? (item.documentPdf ? "已保留原 PDF。确认发布后，原文件会公开，访客可打开或下载。" : "选择原文件后再发布。此方式不需要图片转换组件。")
+      : (unavailable ? `${state.pdfTools.message} 仍可选择“原 PDF”方式。` : pages.length ? `共 ${pages.length} 页；发布时只上传图片，原 PDF 保留在本机供以后切换。` : "转换后逐页检查；发布时只上传页面图片。");
     const removeButton = document.querySelector("[data-remove-talk-pdf]");
-    if (removeButton) removeButton.hidden = pages.length === 0;
+    if (removeButton) removeButton.hidden = pages.length === 0 && !item.documentPdf;
     const confirmRow = document.querySelector("#talk-pdf-confirm-row");
     if (confirmRow) confirmRow.hidden = !state.editing.pendingDocument;
+    document.querySelector("#talk-pdf-confirm-text").textContent = mode === "pdf" ? "我已打开原 PDF，核对内容和版式" : "我已逐页检查字体、缺字、裁切和版式";
     renderTalkPdfPreview();
   }
 
@@ -543,7 +569,7 @@
     itemForm.setAttribute("aria-busy", busy ? "true" : "false");
     const uploadLabel = document.querySelector("#talk-pdf-upload-label");
     if (uploadLabel) {
-      const uploadDisabled = busy || state.pdfTools?.available === false;
+      const uploadDisabled = busy || (state.editing.item.documentMode !== "pdf" && state.pdfTools?.available === false);
       uploadLabel.classList.toggle("button--disabled", uploadDisabled);
       uploadLabel.setAttribute("aria-disabled", uploadDisabled ? "true" : "false");
     }
@@ -578,26 +604,36 @@
       if (input) input.value = "";
       return;
     }
-    const editing = state.editing;
-    const sessionId = editing.sessionId;
-    const itemId = editing.item.id;
-    const baseRevision = state.revision;
-    const status = document.querySelector("#talk-pdf-status");
-    if (status) status.textContent = "正在本机转换 PDF，请稍候……";
-    setItemDialogBusy(true);
-    try {
+    await processTalkDocument(async () => {
       const dataUrl = await new Promise((resolveReader, rejectReader) => {
         const reader = new FileReader();
         reader.onload = () => resolveReader(reader.result);
         reader.onerror = () => rejectReader(reader.error);
         reader.readAsDataURL(file);
       });
+      return { mimeType: "application/pdf", data: String(dataUrl).split(",")[1] };
+    });
+    if (input) input.value = "";
+  }
+
+  async function processTalkDocument(source) {
+    if (!state.editing || state.editing.uploading) return false;
+    const editing = state.editing;
+    const sessionId = editing.sessionId;
+    const itemId = editing.item.id;
+    const baseRevision = state.revision;
+    const status = document.querySelector("#talk-pdf-status");
+    const mode = editing.item.documentMode || "images";
+    if (status) status.textContent = mode === "pdf" ? "正在本机保存原 PDF……" : "正在本机转换 PDF，请稍候……";
+    setItemDialogBusy(true);
+    try {
+      const payloadSource = typeof source === "function" ? await source() : source;
       const payload = await api("/api/talk-document", {
         method: "POST",
         body: JSON.stringify({
           itemId,
-          mimeType: "application/pdf",
-          data: String(dataUrl).split(",")[1],
+          mode,
+          ...payloadSource,
           baseRevision
         })
       });
@@ -611,18 +647,36 @@
       }
       editing.pendingDocument = pending;
       editing.item.documentPages = payload.pages;
-      if (status) status.textContent = `已转换 ${payload.pages.length} 页。请逐页检查字体和版式；临时原 PDF 已删除。`;
+      editing.item.documentPdf = payload.pdf;
+      editing.item.documentMode = payload.mode;
       const confirmation = document.querySelector("#talk-pdf-confirm");
       if (confirmation) confirmation.checked = false;
       updateTalkPdfControls();
       showToast(payload.message);
+      return true;
     } catch (error) {
-      if (status) status.textContent = "转换失败，请检查 PDF 是否损坏、加密、页数或生成图片大小是否超限。";
+      if (status) status.textContent = error.message;
       showToast(error.message, "error");
+      return false;
     } finally {
-      if (state.editing?.sessionId === sessionId) setItemDialogBusy(false);
-      if (input) input.value = "";
+      if (state.editing?.sessionId === sessionId) { setItemDialogBusy(false); updateTalkPdfControls(); }
     }
+  }
+
+  async function changeTalkDocumentMode(mode) {
+    if (!state.editing) return;
+    const item = state.editing.item;
+    const previousMode = item.documentMode || "images";
+    item.documentMode = mode;
+    const confirmation = document.querySelector("#talk-pdf-confirm");
+    if (confirmation) confirmation.checked = false;
+    const hasDocument = item.documentPdf || item.documentPages?.length;
+    if (hasDocument && ((mode === "pdf" && !item.documentPdf) || (mode === "images" && !item.documentPages?.length))) {
+      const path = item.documentPdf || item.documentPages[0];
+      const documentId = path.split("/")[4];
+      if (!await processTalkDocument({ documentId }) && mode === "images") item.documentMode = previousMode;
+    }
+    updateTalkPdfControls();
   }
 
   async function removeTalkPdf() {
@@ -635,11 +689,12 @@
       if (!state.editing || state.editing.sessionId !== sessionId) return;
       editing.pendingDocument = null;
       editing.item.documentPages = [];
+      delete editing.item.documentPdf;
     } finally {
       if (state.editing?.sessionId === sessionId) setItemDialogBusy(false);
     }
     const status = document.querySelector("#talk-pdf-status");
-    if (status) status.textContent = "讲义已移除；保存条目并发布后，云端页面图片才会删除。";
+    if (status) status.textContent = "讲义已移除；保存条目并发布后，云端文件才会删除。";
     updateTalkPdfControls();
     showToast("讲义已从当前条目移除。");
   }
@@ -648,7 +703,7 @@
     const editing = state.editing;
     if (!editing) return;
     if (editing.uploading) {
-      showToast("PDF 仍在转换，请等待完成后再关闭。", "error");
+      showToast("讲义仍在处理，请等待完成后再关闭。", "error");
       return;
     }
     if (editing.pendingDocument) {
@@ -1021,6 +1076,7 @@
     if (event.target.id === "talk-pdf-upload") {
       uploadTalkPdf(event.target.files[0]).catch((error) => showToast(error.message, "error"));
     }
+    if (event.target.id === "talk-document-mode") changeTalkDocumentMode(event.target.value).catch((error) => showToast(error.message, "error"));
   });
 
   itemForm.addEventListener("submit", (event) => {
@@ -1028,10 +1084,14 @@
     const editing = state.editing;
     if (!editing || editing.uploading) return;
     if (editing.pendingDocument && !document.querySelector("#talk-pdf-confirm")?.checked) {
-      showToast("请逐页检查讲义字体和版式，并勾选确认。", "error");
+      showToast("请检查讲义内容和版式，并勾选确认。", "error");
       return;
     }
     const item = collectItem();
+    if ((item.documentMode === "pdf" && item.documentPages?.length && !item.documentPdf) || (item.documentMode === "images" && item.documentPdf && !item.documentPages?.length)) {
+      showToast("当前没有所选展示方式需要的文件，请重新选择原 PDF。", "error");
+      return;
+    }
     if (!item.title) {
       showToast("条目标题不能为空。", "error");
       return;
@@ -1041,7 +1101,7 @@
       return;
     }
     if (item.links.some((link) => /\.pdf(?:$|[/?#&=])|(?:[?&#](?:format|type|download|file|filename)=[^&#]*\bpdf\b)/i.test(link.url))) {
-      showToast("不允许直接链接 PDF。请在“分享与讲座”中上传，由管理器转换为页面图片。", "error");
+      showToast("请在“分享与讲座”的讲义上传处添加 PDF，并选择原文件或图片展示方式。", "error");
       return;
     }
     if (item.links.some((link) => /^\/files\//i.test(link.url))) {

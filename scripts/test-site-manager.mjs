@@ -182,6 +182,8 @@ async function startManager(scenario, root) {
       GITHUB_TOKEN: "",
       GH_TOKEN: "",
       LOCALAPPDATA: localAppData,
+      USERPROFILE: localAppData,
+      ProgramFiles: localAppData,
       PATH: `${fakePdfTools}${delimiter}${process.env.PATH || ""}`,
       SITE_MANAGER_PORT: String(port)
     },
@@ -481,6 +483,107 @@ async function startConcurrentHeadTrigger(repository) {
   };
 }
 
+async function testPdfDisplayChoices(root) {
+  const scenarioRoot = join(root, "pdf-display");
+  await mkdir(scenarioRoot, { recursive: true });
+  const scenario = await createScenario(scenarioRoot);
+  const manager = await startManager(scenario, scenarioRoot);
+  const bytes = minimalPdf();
+  const upload = async (itemId, mode, revision) => {
+    const result = await manager.request("/api/talk-document", {method:"POST",body:{itemId,mode,mimeType:"application/pdf",data:bytes.toString("base64"),baseRevision:revision}});
+    assert.equal(result.status,200,JSON.stringify(result.payload));
+    return result.payload;
+  };
+  const item = (id, document, published) => ({id,title:`讲义 ${id}`,published,featured:false,highlights:[],tags:[],links:[],documentMode:document.mode,documentPdf:document.pdf,documentPages:document.pages});
+  const save = async content => {
+    const working = await manager.request("/api/content");
+    const result = await manager.request("/api/content", {method:"PUT",body:{content,baseRevision:working.payload.revision,baseCommit:working.payload.baseCommit}});
+    assert.equal(result.status,200,JSON.stringify(result.payload));
+    return result.payload;
+  };
+  const publishCandidate = async revision => {
+    const result = await manager.request("/api/publish",{method:"POST",body:{revision,commitMessage:"PDF choice candidate"}});
+    assert.equal(result.status,503,JSON.stringify(result.payload));
+    assert.match(result.payload.message,/origin|GitHub/i);
+    await assertCandidateState(scenario);
+  };
+  try {
+    const initial = (await manager.request("/api/content")).payload;
+    const pdf = await upload("choice-talk","pdf",initial.revision);
+    assert.deepEqual(pdf.pages,[],"原 PDF 模式不得强制生成图片");
+    const previewUrl = `${manager.baseUrl}/preview${pdf.pdf.replace(/^\/images/,"")}?token=${encodeURIComponent(manager.token)}`;
+    const preview = await fetch(previewUrl);
+    assert.equal(preview.status,200);
+    assert.equal(preview.headers.get("content-type"),"application/pdf");
+    assert.deepEqual(Buffer.from(await preview.arrayBuffer()),bytes);
+    const head = await fetch(previewUrl,{method:"HEAD"});
+    assert.equal(head.status,200);
+    assert.equal((await head.arrayBuffer()).byteLength,0);
+    assert.equal((await fetch(previewUrl.split("?")[0])).status,401);
+    assert.equal((await fetch(previewUrl,{method:"POST"})).status,405);
+    const rejected = await manager.request("/api/talk-document",{method:"POST",body:{itemId:"choice-talk",mode:"pdf",mimeType:"application/pdf",data:Buffer.from("%PDF-incomplete").toString("base64")}});
+    assert.equal(rejected.status,422,"损坏原文件必须被拒绝");
+    const images = await upload("image-talk","images",initial.revision);
+    assert.equal(images.pages.length,1);
+    assert.ok(await exists(draftPagePath(scenario.repository,images.pdf)),"图片模式也应在本机保留原件");
+    const privatePdf = await upload("private-talk","pdf",initial.revision);
+    const content = structuredClone(initial.content);
+    content.talks.push(item("choice-talk",pdf,true),item("image-talk",images,true),item("private-talk",privatePdf,false));
+    let saved = await save(content);
+    await publishCandidate(saved.revision);
+    let publicContent = JSON.parse(await readFile(join(scenario.repository,"_data/site_content.json"),"utf8"));
+    assert.ok(await exists(publicPagePath(scenario.repository,pdf.pdf)),"原 PDF 模式应暂存实际原文件");
+    assert.equal(await exists(publicPagePath(scenario.repository,images.pdf)),false,"图片模式不得发布原文件");
+    assert.equal(await exists(publicPagePath(scenario.repository,privatePdf.pdf)),false,"未公开 PDF 不得进入公开目录");
+    assert.equal(publicContent.talks.find(talk=>talk.id==="image-talk").documentPdf,undefined);
+    assert.equal(publicContent.talks.some(talk=>talk.id==="private-talk"),false);
+    const committedPaths = (await git(scenario.repository,["ls-tree","-r","--name-only","HEAD"])).stdout;
+    assert.ok(committedPaths.includes(pdf.pdf.slice(1)));
+    assert.ok(!committedPaths.includes(images.pdf.slice(1)));
+    assert.ok(!committedPaths.includes(privatePdf.pdf.slice(1)));
+    const inUseRemoval = await manager.request("/api/talk-document/remove", {method:"POST",body:{itemId:"choice-talk",documentId:pdf.documentId,baseRevision:saved.revision}});
+    assert.equal(inUseRemoval.status,409,"取消上传不能删除已保存草稿正在使用的原件");
+
+    const orphanPdf = join(scenario.repository,"images","talk-documents","orphan","doc-0123456789abcdefabcd","document.pdf");
+    await mkdir(dirname(orphanPdf),{recursive:true});
+    await writeFile(orphanPdf,bytes);
+    await assert.rejects(run(process.execPath,["scripts/audit-site.mjs","--source"],{cwd:scenario.repository}),error=>/未选择公开的 PDF/.test(error.stderr));
+    await rm(orphanPdf);
+
+    // The managed directory is rebuilt before auditing; use an unmanaged PDF to
+    // exercise an audit failure and the publisher's rollback transaction.
+    const rogue = join(scenario.repository,"images","unmanaged-document.pdf");
+    await mkdir(dirname(rogue),{recursive:true});
+    await writeFile(rogue,bytes);
+    const beforeHead = (await git(scenario.repository,["rev-parse","HEAD"])).stdout;
+    const beforeContent = await readFile(join(scenario.repository,"_data/site_content.json"));
+    const blocked = await manager.request("/api/publish",{method:"POST",body:{revision:saved.revision}});
+    assert.notEqual(blocked.status,200);
+    assert.match(blocked.payload.message,/未选择公开的 PDF/);
+    assert.equal((await git(scenario.repository,["rev-parse","HEAD"])).stdout,beforeHead);
+    assert.deepEqual(await readFile(join(scenario.repository,"_data/site_content.json")),beforeContent,"审计失败必须恢复公开内容");
+    assert.ok(await exists(publicPagePath(scenario.repository,pdf.pdf)),"审计失败必须恢复公开原件");
+    await rm(rogue);
+
+    await rm(draftPagePath(scenario.repository,pdf.pdf));
+    content.talks.find(talk=>talk.id==="choice-talk").published=false;
+    saved = await save(content);
+    await publishCandidate(saved.revision);
+    assert.equal(await exists(publicPagePath(scenario.repository,pdf.pdf)),false,"取消公开应清除当前公开原件");
+    assert.ok(await exists(draftPagePath(scenario.repository,pdf.pdf)),"取消公开必须先保留本机唯一原件");
+    const converted = await manager.request("/api/talk-document",{method:"POST",body:{itemId:"choice-talk",documentId:pdf.documentId,mode:"images",baseRevision:saved.revision}});
+    assert.equal(converted.status,200,JSON.stringify(converted.payload));
+    Object.assign(content.talks.find(talk=>talk.id==="choice-talk"),item("choice-talk",converted.payload,true));
+    saved = await save(content);
+    await publishCandidate(saved.revision);
+    assert.ok(await exists(publicPagePath(scenario.repository,converted.payload.pages[0])));
+    assert.equal(await exists(publicPagePath(scenario.repository,converted.payload.pdf)),false,"从原件切回图片应再次隐藏 PDF");
+    publicContent = JSON.parse(await readFile(join(scenario.repository,"_data/site_content.json"),"utf8"));
+    assert.equal(publicContent.talks.find(talk=>talk.id==="choice-talk").documentMode,"images");
+    assert.equal(await remoteMaster(scenario),scenario.baseCommit,"隔离验证不得正式发布");
+  } finally { await manager.stop(); }
+}
+
 async function testConcurrentHeadStopsPublish(root) {
   const scenarioRoot = join(root, "concurrent-head");
   await mkdir(scenarioRoot, { recursive: true });
@@ -525,6 +628,8 @@ const temporaryRoot = await mkdtemp(join(tmpdir(), "site-manager-integration-"))
 try {
   await testMediaAndCandidateTransactions(temporaryRoot);
   console.log("媒体事务与候选收据测试通过。");
+  await testPdfDisplayChoices(temporaryRoot);
+  console.log("原 PDF / 图片选择、公开过滤、切换与恢复测试通过。");
   await testConcurrentHeadStopsPublish(temporaryRoot);
   console.log("并发 HEAD 发布阻断测试通过。");
   console.log("主页管理器隔离集成测试通过。");

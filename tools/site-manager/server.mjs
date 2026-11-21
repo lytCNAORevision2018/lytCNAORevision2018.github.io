@@ -17,7 +17,9 @@ import {
 } from "node:fs/promises";
 import {
   contentRevision,
-  parseTalkDocumentPage,
+  parseTalkDocumentFile,
+  parseTalkDocumentPdf,
+  talkDocumentFiles,
   sectionDefinitions,
   websiteProfileFields,
   websiteTextDefaults,
@@ -308,7 +310,7 @@ function getPdfToolStatus() {
     ]).then(() => ({ available: true, message: "PDF 转换组件可用。" }))
       .catch(() => ({
         available: false,
-        message: "未检测到 Poppler。其他内容仍可维护；如需上传讲义，请先安装 Poppler。"
+        message: "未检测到 Poppler，暂时不能转换为逐页图片。"
       }));
   }
   return pdfToolStatusPromise;
@@ -352,10 +354,15 @@ function pageNumber(name) {
   return Number(name.match(/(\d+)(?=\.[^.]+$)/)?.[1] || 0);
 }
 
-async function renderTalkPdf(itemId, bytes) {
-  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(itemId || "")) throw clientError("讲座条目 ID 不合法。");
+function validatePdfBytes(bytes) {
   if (bytes.length === 0 || bytes.length > 20 * 1024 * 1024) throw clientError("PDF 文件必须小于 20 MB。");
-  if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-") throw clientError("文件不是有效的 PDF。");
+  if (bytes.subarray(0, 5).toString("ascii") !== "%PDF-" || !bytes.includes(Buffer.from("%%EOF"))) throw clientError("文件不是完整的 PDF。");
+}
+
+async function renderTalkPdf(itemId, bytes, mode = "images") {
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(itemId || "")) throw clientError("讲座条目 ID 不合法。");
+  if (!["images", "pdf"].includes(mode)) throw clientError("讲义展示方式不正确。");
+  validatePdfBytes(bytes);
 
   const documentId = `doc-${randomBytes(10).toString("hex")}`;
   const temporaryDirectory = resolve(pdfTemporaryRoot, randomBytes(10).toString("hex"));
@@ -366,6 +373,13 @@ async function renderTalkPdf(itemId, bytes) {
   await mkdir(temporaryDirectory, { recursive: true });
   try {
     await atomicWrite(inputPath, bytes);
+    await mkdir(normalizedDirectory, { recursive: true });
+    await copyFile(inputPath, join(normalizedDirectory, "document.pdf"));
+    const pdf = `/images/talk-documents/${itemId}/${documentId}/document.pdf`;
+    if (mode === "pdf") {
+      await replaceDirectory(normalizedDirectory, resolve(draftTalkDocumentDirectory, itemId, documentId));
+      return { documentId, mode, pdf, pages: [] };
+    }
     const [pdfinfo, pdftoppm] = await Promise.all([
       popplerExecutable("pdfinfo"),
       popplerExecutable("pdftoppm")
@@ -410,6 +424,8 @@ async function renderTalkPdf(itemId, bytes) {
     await replaceDirectory(normalizedDirectory, resolve(draftTalkDocumentDirectory, itemId, documentId));
     return {
       documentId,
+      mode,
+      pdf,
       pages: renderedFiles.map((_, index) => `/images/talk-documents/${itemId}/${documentId}/page-${String(index + 1).padStart(3, "0")}.jpg`)
     };
   } catch (error) {
@@ -423,16 +439,16 @@ async function renderTalkPdf(itemId, bytes) {
     } catch (error) {
       const cleanupMessage = `临时 PDF 目录删除失败：${error.message}。请关闭占用文件的程序，并检查 .site-manager/pdf-temp/`;
       if (processingError) processingError.message = `${processingError.message}\n${cleanupMessage}`;
-      else throw clientError(`PDF 已转换，但${cleanupMessage}`, 500);
+      else throw clientError(`讲义已处理，但${cleanupMessage}`, 500);
     }
   }
 }
 
 async function materializeDraftTalkDocuments(content, publishedContent) {
-  const publishedPages = new Set((publishedContent.talks || []).flatMap((talk) => talk.documentPages || []));
+  const publishedPages = new Set((publishedContent.talks || []).flatMap(talkDocumentFiles));
   for (const talk of content.talks || []) {
-    for (const page of talk.documentPages || []) {
-      const parsed = parseTalkDocumentPage(page);
+    for (const page of talkDocumentFiles(talk)) {
+      const parsed = parseTalkDocumentFile(page);
       if (!parsed || parsed.itemId !== talk.id) {
         throw clientError(`讲座“${talk.title}”包含不安全的讲义页面路径。`);
       }
@@ -456,9 +472,8 @@ async function syncPublishedTalkDocuments(content) {
     const copiedPages = new Set();
     let totalBytes = 0;
     for (const talk of content.talks) {
-      if (!talk.documentPages?.length) continue;
-      for (const page of talk.documentPages) {
-        const parsed = parseTalkDocumentPage(page);
+      for (const page of talkDocumentFiles(talk)) {
+        const parsed = parseTalkDocumentFile(page);
         if (!parsed || parsed.itemId !== talk.id) throw clientError(`讲座“${talk.title}”包含不安全的讲义页面路径。`);
         const relativePage = `${parsed.itemId}/${parsed.documentId}/${parsed.fileName}`;
         if (copiedPages.has(relativePage)) continue;
@@ -468,9 +483,10 @@ async function syncPublishedTalkDocuments(content) {
         if (!(await exists(sourceFile))) throw clientError(`讲座“${talk.title}”缺少已转换的讲义页面：${page}`);
         const sourceStat = await stat(sourceFile);
         if (!sourceStat.isFile()) throw clientError(`讲座“${talk.title}”的讲义页面不是普通文件：${page}`);
+        if (parsed.fileName === "document.pdf") validatePdfBytes(await readFile(sourceFile));
         totalBytes += sourceStat.size;
         if (totalBytes > maxPublishedTalkDocumentBytes) {
-          throw clientError("所有公开讲义页面合计超过 200 MB，请移除旧讲义或压缩后再发布。");
+          throw clientError("所有公开讲义文件合计超过 200 MB，请移除旧讲义或压缩后再发布。");
         }
         const destination = resolve(stagedRoot, parsed.itemId, parsed.documentId, parsed.fileName);
         await mkdir(dirname(destination), { recursive: true });
@@ -505,14 +521,15 @@ function avatarTarget(content, scope) {
 
 async function validateTalkDocumentFiles(content) {
   for (const talk of content.talks || []) {
-    for (const page of talk.documentPages || []) {
-      const parsed = parseTalkDocumentPage(page);
+    for (const page of talkDocumentFiles(talk)) {
+      const parsed = parseTalkDocumentFile(page);
       if (!parsed || parsed.itemId !== talk.id) continue;
       const draftFile = resolve(draftTalkDocumentDirectory, parsed.itemId, parsed.documentId, parsed.fileName);
       const publicFile = resolve(publicTalkDocumentDirectory, parsed.itemId, parsed.documentId, parsed.fileName);
       if (!(await exists(draftFile)) && !(await exists(publicFile))) {
         throw clientError(`讲座“${talk.title}”引用的讲义预览已失效，请重新选择 PDF：${page}`);
       }
+      if (parsed.fileName === "document.pdf") validatePdfBytes(await readFile(await exists(draftFile) ? draftFile : publicFile));
     }
   }
 }
@@ -521,8 +538,8 @@ async function pruneDraftTalkDocuments(content) {
   if (!(await exists(draftTalkDocumentDirectory))) return;
   const referenced = new Set();
   for (const talk of content.talks || []) {
-    for (const page of talk.documentPages || []) {
-      const parsed = parseTalkDocumentPage(page);
+    for (const page of talkDocumentFiles(talk)) {
+      const parsed = parseTalkDocumentFile(page);
       if (parsed) referenced.add(`${parsed.itemId}/${parsed.documentId}`);
     }
   }
@@ -1289,7 +1306,9 @@ async function publishContent(content, commitMessage, baseCommit) {
     const pathsToStage = await stageableManagedPaths(allowedPaths);
     await git(["add", "-A", "--", ...pathsToStage]);
     const { stdout: stagedPdfOutput } = await git(["diff", "--cached", "--name-only", "--diff-filter=ACMR", "--", "*.pdf", "**/*.pdf"]);
-    if (stagedPdfOutput.trim()) throw new Error(`发布已停止：暂存区包含 PDF 文件。\n${stagedPdfOutput.trim()}`);
+    const approvedPdfs = new Set(publicContent.talks.filter((talk) => talk.documentMode === "pdf").map((talk) => talk.documentPdf?.slice(1)).filter(Boolean));
+    const unexpectedPdfs = stagedPdfOutput.split(/\r?\n/).filter(Boolean).filter((path) => !approvedPdfs.has(path));
+    if (unexpectedPdfs.length) throw new Error(`发布已停止：暂存区包含未选择公开的 PDF。\n${unexpectedPdfs.join("\n")}`);
     const { stdout: stagedPathsOutput } = await git(["-c", "core.quotepath=false", "diff", "--cached", "--name-only", "-z"]);
     const unexpectedStagedPaths = stagedPathsOutput.split("\0").filter(Boolean).filter((path) => !isManagedPath(path, allowedPaths));
     if (unexpectedStagedPaths.length > 0) {
@@ -1485,10 +1504,10 @@ async function publishContent(content, commitMessage, baseCommit) {
     postPublishWarnings.push(`云端已发布，但本地候选收据未能清理：${error.message}`);
   }
   try {
-    const pdfPaths = await historicalPdfPaths(fullCommit);
+    const pdfPaths = initialStatus.bootstrapMode ? await historicalPdfPaths(fullCommit) : [];
     if (pdfPaths.length > 0) {
       postPublishWarnings.push(
-        `当前站点树不再发布 PDF，但 Git 历史仍包含 ${pdfPaths.length} 个 PDF 路径；历史 Raw 地址不会因本次发布失效，如需彻底移除必须另行重写历史。`
+        `Git 历史包含 ${pdfPaths.length} 个 PDF 路径；切换当前展示方式不会移除历史版本。`
       );
     }
   } catch (error) {
@@ -1575,7 +1594,7 @@ async function serveTalkDocumentPreview(request, response, url) {
     errorResponse(response, 401, "预览会话已失效。");
     return;
   }
-  const match = url.pathname.match(/^\/preview\/talk-documents\/([a-z0-9][a-z0-9-]{0,63})\/(doc-[a-f0-9]{20})\/(page-\d{3}\.jpg)$/);
+  const match = url.pathname.match(/^\/preview\/talk-documents\/([a-z0-9][a-z0-9-]{0,63})\/(doc-[a-f0-9]{20})\/(page-\d{3}\.jpg|document\.pdf)$/);
   if (!match) {
     errorResponse(response, 404, "预览页面不存在。");
     return;
@@ -1588,9 +1607,10 @@ async function serveTalkDocumentPreview(request, response, url) {
     const body = await readFile(filePath);
     response.writeHead(200, {
       "Cache-Control": "no-store",
-      "Content-Type": "image/jpeg",
+      "Content-Type": fileName === "document.pdf" ? "application/pdf" : "image/jpeg",
       "Content-Length": body.length,
       "Content-Disposition": "inline",
+      "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff"
     });
     response.end(request.method === "HEAD" ? undefined : body);
@@ -1728,15 +1748,25 @@ async function handleApi(request, response, pathname) {
         error.statusCode = 409;
         throw error;
       }
-      if (body.mimeType !== "application/pdf" || typeof body.data !== "string") {
-        throw clientError("仅支持 PDF 讲义。");
+      let bytes;
+      if (body.documentId) {
+        const reference = `/images/talk-documents/${body.itemId}/${body.documentId}/document.pdf`;
+        const parsed = parseTalkDocumentPdf(reference);
+        if (!parsed) throw clientError("讲义版本不正确。");
+        const localFile = resolve(draftTalkDocumentDirectory, parsed.itemId, parsed.documentId, parsed.fileName);
+        const publicFile = resolve(publicTalkDocumentDirectory, parsed.itemId, parsed.documentId, parsed.fileName);
+        if (!(await exists(localFile)) && !(await exists(publicFile))) throw clientError("这份旧讲义只保留了图片，请重新选择原 PDF 后再切换。");
+        bytes = await readFile(await exists(localFile) ? localFile : publicFile);
+      } else {
+        if (body.mimeType !== "application/pdf" || typeof body.data !== "string") throw clientError("仅支持 PDF 讲义。");
+        bytes = Buffer.from(body.data, "base64");
       }
-      return renderTalkPdf(body.itemId, Buffer.from(body.data, "base64"));
+      return renderTalkPdf(body.itemId, bytes, body.mode ?? "images");
     });
     jsonResponse(response, 200, {
       ok: true,
       ...result,
-      message: `PDF 已在本机临时处理并转换为 ${result.pages.length} 张页面图片；临时原文件已删除。`
+      message: result.mode === "pdf" ? "原 PDF 已保存在本机；确认发布后才会上传。" : `已转换为 ${result.pages.length} 张图片；原文件只保存在本机，便于以后切换。`
     });
     return;
   }
@@ -1752,6 +1782,11 @@ async function handleApi(request, response, pathname) {
         error.statusCode = 409;
         throw error;
       }
+      const inUse = (current.content.talks || []).some((talk) => talkDocumentFiles(talk).some((file) => {
+        const parsed = parseTalkDocumentFile(file);
+        return parsed?.itemId === body.itemId && parsed.documentId === body.documentId;
+      }));
+      if (inUse) throw clientError("这份讲义仍被已保存的草稿使用；请先移除条目中的讲义并保存草稿。", 409);
       const itemDirectory = resolve(draftTalkDocumentDirectory, body.itemId);
       await rm(resolve(itemDirectory, body.documentId), { recursive: true, force: true });
       if (await exists(itemDirectory) && (await readdir(itemDirectory)).length === 0) {

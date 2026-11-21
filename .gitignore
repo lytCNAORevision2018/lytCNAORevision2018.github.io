@@ -22,8 +22,9 @@ package-lock.json
 # Local drafts and state created by the one-click site manager
 .site-manager/
 
-# Original PDFs are never committed; lecture PDFs are converted to page images locally
+# Only explicitly published lecture PDFs use this managed filename.
 *.pdf
+!images/talk-documents/**/document.pdf
 tmp/
 
 # Ignore files created by MacOS

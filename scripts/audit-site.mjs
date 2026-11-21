@@ -1,7 +1,7 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolvedWebsiteProfile, validateContent } from "../tools/site-manager/lib/content.mjs";
+import { parseTalkDocumentPdf, resolvedWebsiteProfile, talkDocumentFiles, validateContent } from "../tools/site-manager/lib/content.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
@@ -19,6 +19,32 @@ const errors = [];
 
 function fail(message) {
   errors.push(message);
+}
+
+function publicPdfPaths(content) {
+  return new Set((content.talks || []).filter((talk) => talk.published && talk.documentMode === "pdf" && parseTalkDocumentPdf(talk.documentPdf)?.itemId === talk.id).map((talk) => talk.documentPdf));
+}
+
+function allowedPdfUrl(value, allowed) {
+  try {
+    const url = new URL(value, `${expectedOrigin}/`);
+    return url.origin === expectedOrigin && !url.search && allowed.has(url.pathname);
+  } catch { return false; }
+}
+
+async function auditPdfFile(path, root, allowed) {
+  const name = `/${relative(root, path).replaceAll("\\", "/")}`;
+  if (!allowed.has(name)) { fail(`存在未选择公开的 PDF：${name}`); return; }
+  const bytes = await readFile(path);
+  if (bytes.length > 20 * 1024 * 1024 || bytes.subarray(0, 5).toString("ascii") !== "%PDF-" || !bytes.includes(Buffer.from("%%EOF"))) fail(`PDF 文件不完整或超过 20 MB：${name}`);
+}
+
+async function auditTalkDocumentTree(root, content) {
+  const expected = new Set((content.talks || []).filter((talk) => talk.published).flatMap(talkDocumentFiles));
+  const files = await walk(resolve(root, "images", "talk-documents"), { ignore: new Set() });
+  const actual = new Set(files.map((path) => `/${relative(root, path).replaceAll("\\", "/")}`));
+  for (const file of expected) if (!actual.has(file)) fail(`公开讲义文件不存在：${file}`);
+  for (const file of actual) if (!expected.has(file)) fail(`存在未选择公开的讲义文件：${file}`);
 }
 
 async function exists(path) {
@@ -100,6 +126,7 @@ function contentLinks(content) {
 async function auditSource() {
   const contentPath = resolve(repositoryRoot, "_data", "site_content.json");
   const content = JSON.parse(await readFile(contentPath, "utf8"));
+  const allowedPdfs = publicPdfPaths(content);
   for (const message of validateContent(content)) fail(`内容数据：${message}`);
 
   if (!content.meta?.siteUrl?.startsWith("https://") || !content.meta.siteUrl.endsWith("/")) {
@@ -115,7 +142,7 @@ async function auditSource() {
     if (forbiddenTemplateAssets.has(name) || name.startsWith("_drafts/") || name.startsWith("_data/comments/")) {
       fail(`仓库仍包含模板占位资源：${name}`);
     }
-    if (extname(path).toLowerCase() === ".pdf") fail(`仓库中不允许存在 PDF：${displayPath(path)}`);
+    if (extname(path).toLowerCase() === ".pdf") await auditPdfFile(path, repositoryRoot, allowedPdfs);
   }
 
   const publicSourceRoots = ["_data", "_includes", "_layouts", "_pages"].map((path) => resolve(repositoryRoot, path));
@@ -128,7 +155,9 @@ async function auditSource() {
     if (/name name|name@name\.com|github university|paper title number|teaching experience|skill 1|your name|lorem ipsum/i.test(text)) {
       fail(`${name} 仍包含模板占位信息。`);
     }
-    if (/\.pdf(?:$|[/?#&=])/im.test(text)) fail(`${name} 含有直接 PDF 引用。`);
+    for (const match of text.matchAll(/(?:https?:\/\/|\/)[^\s"'<>]*\.pdf(?:[?#][^\s"'<>]*)?/gi)) {
+      if (!allowedPdfUrl(match[0], allowedPdfs)) fail(`${name} 含有未选择公开的 PDF 引用：${match[0]}`);
+    }
     if (/\b(?:paperurl|slidesurl|bibtexurl)\b|Download (?:Paper|Slides|Bibtex)/i.test(text)) {
       fail(`${name} 仍保留旧的下载模板字段。`);
     }
@@ -173,19 +202,16 @@ async function auditSource() {
   if (websiteAvatar && !websiteAvatar.includes("://")) {
     if (!(await exists(resolve(repositoryRoot, "images", websiteAvatar)))) fail(`网站独立头像文件不存在：images/${websiteAvatar}`);
   }
-  for (const talk of content.talks || []) {
-    for (const page of talk.documentPages || []) {
-      const pagePath = resolve(repositoryRoot, page.replace(/^\/+/, ""));
-      if (!(await exists(pagePath))) fail(`公开讲义页面不存在：${page}`);
-    }
-  }
+  await auditTalkDocumentTree(repositoryRoot, content);
 }
 
 async function auditBuiltSite(siteDirectory) {
   const managedContent = JSON.parse(await readFile(resolve(repositoryRoot, "_data", "site_content.json"), "utf8"));
+  const allowedPdfs = publicPdfPaths(managedContent);
+  await auditTalkDocumentTree(siteDirectory, managedContent);
   const files = await walk(siteDirectory, { ignore: new Set() });
   for (const path of files) {
-    if (extname(path).toLowerCase() === ".pdf") fail(`构建产物中不允许存在 PDF：${relative(siteDirectory, path).replaceAll("\\", "/")}`);
+    if (extname(path).toLowerCase() === ".pdf") await auditPdfFile(path, siteDirectory, allowedPdfs);
   }
 
   const htmlFiles = files.filter((path) => extname(path).toLowerCase() === ".html");
@@ -196,7 +222,6 @@ async function auditBuiltSite(siteDirectory) {
     const isRedirect = /http-equiv=["']refresh["']/i.test(html);
     if (!isRedirect && !/<html\b[^>]*\blang=["']zh-CN["']/i.test(html)) fail(`${name} 缺少规范的 lang=zh-CN。`);
     if (!/<meta\b[^>]*charset=["']?utf-8/i.test(html)) fail(`${name} 缺少 UTF-8 charset。`);
-    if (/\.pdf(?:$|[/?#&=])/im.test(html)) fail(`${name} 含有 PDF 地址。`);
     if (/\bjavascript\s*:/i.test(html)) fail(`${name} 含有 javascript: 地址。`);
     if (/<a\b[^>]*\bhref=["']\s*["']/i.test(html)) fail(`${name} 含有空的可点击链接。`);
 
@@ -234,7 +259,7 @@ async function auditBuiltSite(siteDirectory) {
     }
 
     const pageUrl = new URL(documentUrlPath(siteDirectory, path), `${expectedOrigin}/`);
-    for (const match of html.matchAll(/<(a|link|img|script)\b[^>]*\b(href|src)=["']([^"']+)["'][^>]*>/gi)) {
+    for (const match of html.matchAll(/<(a|link|img|script|object|iframe)\b[^>]*\b(href|src|data)=["']([^"']+)["'][^>]*>/gi)) {
       const tag = match[0];
       const value = match[3].trim();
       if (!value || value.startsWith("#") || /^(?:mailto|tel|data|blob):/i.test(value)) continue;
@@ -245,6 +270,7 @@ async function auditBuiltSite(siteDirectory) {
         fail(`${name} 含有无效地址：${value}`);
         continue;
       }
+      if (/\.pdf$/i.test(url.pathname) && !allowedPdfUrl(value, allowedPdfs)) fail(`${name} 含有未选择公开的 PDF 地址：${value}`);
       if (url.origin === expectedOrigin && !(await resolveBuiltTarget(siteDirectory, url.pathname))) {
         fail(`${name} 的站内资源不存在：${value}`);
       }

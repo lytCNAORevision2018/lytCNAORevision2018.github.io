@@ -48,7 +48,7 @@ if errorlevel 1 (
 
 node "%~dp0tools\site-manager\server.mjs" --check-pdf-tools >nul 2>nul
 if errorlevel 1 (
-  echo [提示] 未检测到 Poppler。普通内容仍可维护，但暂时不能上传“分享与讲座”PDF。
+  echo [提示] 未检测到 Poppler。原 PDF 仍可上传；如需转换为逐页图片，请安装该组件。
   echo        可在 PowerShell 运行：winget install --id oschwartz10612.Poppler -e
   echo.
 )

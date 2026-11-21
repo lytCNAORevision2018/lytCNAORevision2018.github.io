@@ -165,6 +165,7 @@ const MAX_TEXT_LENGTH = 12000;
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TALK_DOCUMENT_PATTERN = /^\/images\/talk-documents\/([a-z0-9][a-z0-9-]{0,63})\/(doc-[a-f0-9]{20})\/page-(\d{3})\.jpg$/;
+const TALK_PDF_PATTERN = /^\/images\/talk-documents\/([a-z0-9][a-z0-9-]{0,63})\/(doc-[a-f0-9]{20})\/document\.pdf$/;
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -224,6 +225,19 @@ export function parseTalkDocumentPage(value) {
     pageNumber: Number(match[3]),
     fileName: `page-${match[3]}.jpg`
   };
+}
+
+export function parseTalkDocumentPdf(value) {
+  const match = TALK_PDF_PATTERN.exec(value || "");
+  return match ? { itemId: match[1], documentId: match[2], fileName: "document.pdf" } : null;
+}
+
+export function talkDocumentFiles(item) {
+  return [...(item.documentPages || []), ...(item.documentPdf ? [item.documentPdf] : [])];
+}
+
+export function parseTalkDocumentFile(value) {
+  return parseTalkDocumentPage(value) || parseTalkDocumentPdf(value);
 }
 
 function inspectStrings(value, path, errors) {
@@ -400,11 +414,20 @@ export function validateContent(content) {
         });
       }
       if (section.key === "talks") {
+        if (item.documentMode !== undefined && !["images", "pdf"].includes(item.documentMode)) errors.push(`${path} 的讲义展示方式不正确`);
+        if (item.documentPdf !== undefined && typeof item.documentPdf !== "string") errors.push(`${path} 的原 PDF 地址必须是文字`);
         if (item.documentPages !== undefined && !Array.isArray(item.documentPages)) {
           errors.push(`${path} 的讲义页必须是数组`);
         }
         if ((item.documentPages || []).length > 80) errors.push(`${path} 的讲义最多允许 80 页`);
         const documentIds = new Set();
+        if (item.documentPdf) {
+          const pdf = parseTalkDocumentPdf(item.documentPdf);
+          if (!pdf || pdf.itemId !== item.id) errors.push(`${path} 包含不安全的原 PDF 路径`);
+          else documentIds.add(pdf.documentId);
+        }
+        if (item.documentMode === "pdf" && item.documentPages?.length && !item.documentPdf) errors.push(`${path} 选择原 PDF 展示时，请先上传原文件`);
+        if (item.documentMode !== "pdf" && item.documentPdf && !item.documentPages?.length) errors.push(`${path} 选择图片展示时，请先生成页面图片`);
         for (const [pageIndex, page] of (item.documentPages || []).entries()) {
           const parsed = parseTalkDocumentPage(page);
           if (!parsed || parsed.itemId !== item.id || parsed.pageNumber !== pageIndex + 1) {
@@ -414,7 +437,7 @@ export function validateContent(content) {
           documentIds.add(parsed.documentId);
         }
         if (documentIds.size > 1) errors.push(`${path} 的讲义页面必须来自同一个转换版本`);
-      } else if (item.documentPages?.length) {
+      } else if (item.documentPages?.length || item.documentPdf || item.documentMode) {
         errors.push(`${path} 不允许附加讲义页；PDF 仅限“分享与讲座”栏目`);
       }
     });
@@ -433,6 +456,10 @@ export function toPublishedContent(content, date) {
   published.meta.lastUpdated = date;
   for (const key of sectionKeys) {
     published[key] = published[key].filter((item) => item.published === true);
+  }
+  for (const item of published.talks) {
+    if (item.documentMode === "pdf") item.documentPages = [];
+    else delete item.documentPdf;
   }
   return published;
 }

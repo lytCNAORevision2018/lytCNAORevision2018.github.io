@@ -201,4 +201,35 @@ for (const url of [
   assert.deepEqual(validateContent(content), []);
 }
 
-console.log("内容模型、网站独立设置与说明文字测试通过。");
+{
+  const content = copy();
+  const prefix = "/images/talk-documents/pdf-choice/doc-0123456789abcdefabcd/";
+  const talk = {id:"pdf-choice",title:"可选择的讲义",published:true,featured:false,highlights:[],tags:[],links:[],documentMode:"images",documentPages:[`${prefix}page-001.jpg`],documentPdf:`${prefix}document.pdf`};
+  content.talks.push(talk);
+  assert.deepEqual(validateContent(content),[]);
+  const images = toPublishedContent(content,"2026-11-21");
+  assert.equal(images.talks.at(-1).documentPdf,undefined,"图片模式不得泄露原 PDF 地址");
+  assert.equal(images.talks.at(-1).documentPages.length,1);
+  talk.documentMode="pdf";
+  assert.deepEqual(validateContent(content),[]);
+  const pdf = toPublishedContent(content,"2026-11-21");
+  assert.equal(pdf.talks.at(-1).documentPdf,`${prefix}document.pdf`);
+  assert.deepEqual(pdf.talks.at(-1).documentPages,[],"PDF 模式只发布原文件");
+  assert.equal(talk.documentPages.length,1,"投影不得破坏本机切换资料");
+  talk.published=false;
+  assert.equal(toPublishedContent(content,"2026-11-21").talks.some(item=>item.id===talk.id),false);
+  talk.documentPdf="/images/talk-documents/other/doc-0123456789abcdefabcd/document.pdf";
+  expectError(content,/不安全的原 PDF 路径/);
+  talk.documentPdf=`${prefix}../document.pdf`;
+  expectError(content,/不安全的原 PDF 路径/);
+  talk.documentPdf=`${prefix}document.pdf`;
+  talk.documentMode="other";
+  expectError(content,/展示方式不正确/);
+  talk.documentMode="images";
+  talk.documentPages=[];
+  expectError(content,/先生成页面图片/);
+  talk.documentMode="pdf";
+  assert.deepEqual(validateContent(content),[]);
+}
+
+console.log("内容模型、独立设置与 PDF / 图片展示选择测试通过。");

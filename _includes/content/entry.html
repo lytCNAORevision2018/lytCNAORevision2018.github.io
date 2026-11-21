@@ -48,7 +48,13 @@
     </div>
   {% endif %}
 
-  {% if include.show_document and item.documentPages and item.documentPages.size > 0 %}
+  {% if include.show_document and item.documentMode == "pdf" and item.documentPdf != blank %}
+    <details class="talk-document talk-document--pdf">
+      <summary>在线查看讲义（PDF）</summary>
+      <p class="talk-document__actions"><a href="{{ item.documentPdf | escape }}" target="_blank" rel="noopener noreferrer">打开 PDF</a> · <a href="{{ item.documentPdf | escape }}" download>下载 PDF</a></p>
+      <iframe class="talk-document__pdf" src="{{ item.documentPdf | escape }}" title="{{ item.title | escape }}讲义" loading="lazy"></iframe>
+    </details>
+  {% elsif include.show_document and item.documentPages and item.documentPages.size > 0 %}
     <details class="talk-document">
       <summary>在线查看讲义（{{ item.documentPages.size }} 页）</summary>
       {% assign talk_notice = site.data.site_content.website.text.misc.talkNotice | default: site.data.website_text.misc.talkNotice %}

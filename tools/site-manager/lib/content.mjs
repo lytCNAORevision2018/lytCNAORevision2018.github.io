@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { readingSections, linkKinds, identifyLink } from "../public/content-options.mjs";
+import { readingSections, linkKinds, identifyLink, awardCategories } from "../public/content-options.mjs";
 
 export const websiteTextDefaults = JSON.parse(readFileSync(new URL("../../../_data/website_text.json", import.meta.url), "utf8"));
 
@@ -73,7 +73,7 @@ export const sectionDefinitions = [
     key: "awards",
     label: "荣誉与奖项",
     singular: "荣誉或奖项",
-    description: "奖学金、竞赛奖项与荣誉称号。",
+    description: "荣誉称号、竞赛奖项、奖学金分别管理和展示。",
     fields: [
       { name: "title", label: "奖项名称", type: "text", required: true },
       { name: "issuer", label: "颁发单位", type: "text" },
@@ -143,7 +143,7 @@ export const sectionDefinitions = [
 export const sectionKeys = sectionDefinitions.map((section) => section.key);
 
 for (const section of sectionDefinitions) {
-  if (section.key === "awards") section.fields.splice(1, 0, {name:"category",label:"分类",type:"select",options:{honor:"荣誉称号",award:"奖项 / 奖学金"}});
+  if (section.key === "awards") section.fields.splice(1, 0, {name:"category",label:"分类",type:"select",options:awardCategories});
   if (!readingSections.includes(section.key)) continue;
   section.fields.push(
     {name:"course",label:section.key === "outsideResearch" ? "博客分类" : "所属课程 / 专题",type:"text",placeholder:"可留空；同名专题会在目录中归组"},
@@ -433,7 +433,7 @@ export function validateContent(content) {
           if (isForbiddenFileArea(link?.url)) errors.push(`${path} 的链接不允许指向 /files/；请使用受控的站内页面或外部网页`);
         });
       }
-      if (section.key === "awards" && item.category !== undefined && !["honor","award"].includes(item.category)) errors.push(`${path} 的荣誉 / 奖项分类不正确`);
+      if (section.key === "awards" && item.category !== undefined && item.category !== "award" && !Object.hasOwn(awardCategories, item.category)) errors.push(`${path} 的分类不正确；请选择荣誉称号、竞赛奖项或奖学金`);
       if (readingSections.includes(section.key)) {
         if (item.body !== undefined && typeof item.body !== "string") errors.push(`${path} 的正文必须是文字`);
         if (item.bodyFormat !== undefined && !["markdown","latex"].includes(item.bodyFormat)) errors.push(`${path} 的正文格式不正确`);

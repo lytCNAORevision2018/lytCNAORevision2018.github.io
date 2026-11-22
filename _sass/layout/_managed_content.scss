@@ -377,6 +377,50 @@
 .footer-note, .page-introduction { overflow-wrap: anywhere; }
 .page-introduction { margin: 0 0 1.75rem; }
 .sidebar p, .sidebar li { font-size: 0.875rem; line-height: 1.65; }
+.sidebar .author__name,
+.sidebar .author__bio,
+.sidebar .author__urls li,
+.sidebar .author__urls a {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@include breakpoint($large) {
+  #main.main--with-sidebar {
+    display: grid;
+    grid-template-columns: clamp(240px, 22vw, 280px) minmax(0, 1fr);
+    column-gap: clamp(1.5rem, 3vw, 2.5rem);
+    align-items: start;
+
+    // Clearfix pseudo-elements must not occupy grid cells.
+    &::before, &::after { display: none; }
+
+    > .sidebar {
+      position: sticky;
+      top: calc(#{$masthead-height} + 1rem);
+      width: 100%;
+      max-width: none;
+      height: auto;
+      max-height: calc(100vh - #{$masthead-height} - 2rem);
+      margin: 0;
+      padding: 0 0.25rem 0.5rem 0;
+      overflow-y: auto;
+      float: none;
+    }
+
+    > .page, > .archive {
+      float: none;
+      width: 100%;
+      min-width: 0;
+      margin: 0;
+      padding: 0;
+    }
+
+    > .page__related { grid-column: 2; }
+  }
+
+  .sidebar .author__desktop { display: block; }
+}
 .author__urls-wrapper .btn { white-space: nowrap; min-height: 44px; padding: 0.5rem 0.7rem; font-size: 0.875rem; }
 .home-intro__actions a, .content-entry__links a, .cv-summary__contact a { min-height: 44px; }
 
@@ -388,6 +432,8 @@ html[data-theme="dark"] {
 }
 
 @media print {
+  #main.main--with-sidebar { display: block; }
+
   .masthead,
   .sidebar,
   .page__footer,

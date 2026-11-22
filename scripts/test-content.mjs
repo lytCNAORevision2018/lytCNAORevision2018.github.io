@@ -17,6 +17,22 @@ function expectError(content, pattern) {
 assert.deepEqual(validateContent(source), [], "当前公开内容必须通过校验");
 
 {
+  const content = copy();
+  const award = { id: "category-test", title: "分类兼容测试", published: true, featured: false, highlights: [], tags: [], links: [] };
+  content.awards = [award];
+  for (const category of [undefined, "award", "honor", "competition", "scholarship"]) {
+    if (category === undefined) delete award.category;
+    else award.category = category;
+    assert.deepEqual(validateContent(content), [], `新三分类与旧资料应可保存：${category}`);
+    assert.deepEqual(toPublishedContent(content, "2026-11-22").awards, [award], "公开资料保留手动分类，不修改原条目");
+  }
+  for (const category of ["", "other", "__proto__", null, 1]) {
+    award.category = category;
+    expectError(content, /请选择荣誉称号、竞赛奖项或奖学金/);
+  }
+}
+
+{
   const ids = new Set();
   const content = copy();
   for (const key of sectionKeys) {

@@ -49,10 +49,19 @@ export function identifyLink(value, override = "auto") {
   return { kind, label: linkKinds[kind] || "网页" };
 }
 
+export const awardCategories = {
+  honor: "荣誉称号",
+  competition: "竞赛奖项",
+  scholarship: "奖学金",
+};
+
 export function awardCategory(item) {
-  if (["honor", "award"].includes(item.category)) return item.category;
-  return /优秀毕业生|荣誉|称号|三好学生|优秀学生干部/.test(item.title || "") &&
-    !/奖学金|奖项|等奖/.test(item.title || "")
-    ? "honor"
-    : "award";
+  if (Object.hasOwn(awardCategories, item.category)) return item.category;
+  const title = item.title || "";
+  if (/奖学金|scholarship/i.test(title)) return "scholarship";
+  // Legacy "award" meant a non-honor award; split it without overriding that choice.
+  if (item.category !== "award" &&
+      /优秀毕业生|荣誉|称号|三好学生|优秀学生干部/.test(title) &&
+      !/奖项|等奖/.test(title)) return "honor";
+  return "competition";
 }

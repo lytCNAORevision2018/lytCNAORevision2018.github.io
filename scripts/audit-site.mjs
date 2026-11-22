@@ -3,7 +3,7 @@ import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseTalkDocumentPdf, resolvedWebsiteProfile, talkDocumentFiles, validateContent, documentItems } from "../tools/site-manager/lib/content.mjs";
 import { auditArticleFiles, articleFiles, renderBody } from "../tools/site-manager/lib/articles.mjs";
-import { readingSections, awardCategory } from "../tools/site-manager/public/content-options.mjs";
+import { readingSections, awardCategory, awardCategories } from "../tools/site-manager/public/content-options.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
@@ -251,11 +251,11 @@ async function auditBuiltSite(siteDirectory) {
     const html = await readFile(path, "utf8");
     const name = relative(siteDirectory, path).replaceAll("\\", "/");
     if(["/awards/","/cv/"].includes(documentUrlPath(siteDirectory,path))) {
-      const groups=[...html.matchAll(/<div class="award-group">([\s\S]*?)(?=<div class="award-group">|<\/section>)/g)];
+      const groups=[...html.matchAll(/<div class="award-group" data-award-category="([^"]+)">([\s\S]*?)(?=<div class="award-group"|<\/section>)/g)];
       const publishedAwards=managedContent.awards.filter(item=>item.published);
-      const expectedCounts=["honor","award"].map(category=>publishedAwards.filter(item=>awardCategory(item) === category).length).filter(Boolean);
-      const actualCounts=groups.map(group=>[...group[1].matchAll(/<article class="content-entry">/g)].length);
-      if(JSON.stringify(expectedCounts) !== JSON.stringify(actualCounts))fail(`${name} 的荣誉 / 奖项分组出现遗漏或重复：应为 ${expectedCounts}，实际 ${actualCounts}`);
+      const expectedGroups=Object.entries(awardCategories).map(([category,label])=>({category,label,count:publishedAwards.filter(item=>awardCategory(item) === category).length})).filter(group=>group.count > 0);
+      const actualGroups=groups.map(group=>({category:group[1],label:group[2].match(/^<h3>(.*?)<\/h3>/)?.[1],count:[...group[2].matchAll(/<article class="content-entry">/g)].length}));
+      if(JSON.stringify(expectedGroups) !== JSON.stringify(actualGroups))fail(`${name} 的荣誉称号 / 竞赛奖项 / 奖学金分组不一致：应为 ${JSON.stringify(expectedGroups)}，实际 ${JSON.stringify(actualGroups)}`);
     }
     const isRedirect = /http-equiv=["']refresh["']/i.test(html);
     if (!isRedirect && !/<html\b[^>]*\blang=["']zh-CN["']/i.test(html)) fail(`${name} 缺少规范的 lang=zh-CN。`);

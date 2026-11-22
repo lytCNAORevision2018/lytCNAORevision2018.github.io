@@ -1,5 +1,5 @@
 import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
-import { identifyLink, linkKinds, awardCategory } from "./content-options.mjs";
+import { identifyLink, linkKinds, awardCategory, awardCategories } from "./content-options.mjs";
 
 (() => {
   "use strict";
@@ -360,6 +360,7 @@ import { identifyLink, linkKinds, awardCategory } from "./content-options.mjs";
   function renderSection(key) {
     const definition = sectionDefinition(key);
     const items = state.content[key];
+    const emptyAwardCategory = key === "awards" && Object.hasOwn(awardCategories, state.awardFilter) && !items.some(item => awardCategory(item) === state.awardFilter);
     editor.innerHTML = `
       <div class="section-heading">
         <div>
@@ -370,7 +371,8 @@ import { identifyLink, linkKinds, awardCategory } from "./content-options.mjs";
           <button class="button button--primary" type="button" data-add-item>新增${escapeHtml(definition.singular)}</button>
         </div>
       </div>
-      ${key === "awards" ? `<div class="award-filters" aria-label="荣誉与奖项分类"><button type="button" class="button button--secondary" data-award-filter="all" aria-pressed="${!state.awardFilter || state.awardFilter === "all"}">全部</button><button type="button" class="button button--secondary" data-award-filter="honor" aria-pressed="${state.awardFilter === "honor"}">荣誉称号</button><button type="button" class="button button--secondary" data-award-filter="award" aria-pressed="${state.awardFilter === "award"}">奖项与奖学金</button></div>` : ""}
+      ${key === "awards" ? `<div class="award-filters" aria-label="荣誉与奖项分类"><button type="button" class="button button--secondary" data-award-filter="all" aria-pressed="${!state.awardFilter || state.awardFilter === "all"}">全部</button>${Object.entries(awardCategories).map(([category,label]) => `<button type="button" class="button button--secondary" data-award-filter="${category}" aria-pressed="${state.awardFilter === category}">${label}</button>`).join("")}</div>` : ""}
+      ${emptyAwardCategory ? `<div class="empty-state">当前没有${awardCategories[state.awardFilter]}，可点击上方按钮新增。</div>` : ""}
       ${items.length === 0 ? `<div class="empty-state">当前没有${escapeHtml(definition.label)}条目。</div>` : `
         <div class="entry-list">
           ${items.map((item, index) => `
@@ -381,7 +383,7 @@ import { identifyLink, linkKinds, awardCategory } from "./content-options.mjs";
                 <div class="entry-flags">
                   <span class="entry-flag ${item.published ? "entry-flag--published" : ""}">${item.published ? "公开" : "本地草稿"}</span>
                   ${item.featured ? '<span class="entry-flag">首页展示</span>' : ""}
-                  ${key === "awards" ? `<span class="entry-flag">${awardCategory(item) === "honor" ? "荣誉称号" : "奖项 / 奖学金"}</span>` : ""}
+                  ${key === "awards" ? `<span class="entry-flag">${awardCategories[awardCategory(item)]}</span>` : ""}
                   ${item.course ? `<span class="entry-flag">${escapeHtml(item.course)}</span>` : ""}
                   ${item.period || item.date ? `<span class="entry-flag">${escapeHtml(item.period || item.date)}</span>` : ""}
                 </div>
@@ -413,6 +415,7 @@ import { identifyLink, linkKinds, awardCategory } from "./content-options.mjs";
   function newItem(sectionKey) {
     return {
       id: createItemId(sectionKey),
+      ...(sectionKey === "awards" && Object.hasOwn(awardCategories, state.awardFilter) ? { category: state.awardFilter } : {}),
       title: "",
       summary: "",
       highlights: [],
@@ -439,7 +442,7 @@ import { identifyLink, linkKinds, awardCategory } from "./content-options.mjs";
   function itemField(field, item) {
     const value = item[field.name] ?? "";
     if (field.type === "select") {
-      const selected = item[field.name] ?? (field.name === "category" ? awardCategory(item) : Object.keys(field.options)[0]);
+      const selected = field.name === "category" ? awardCategory(item) : (item[field.name] ?? Object.keys(field.options)[0]);
       return `<label class="field"><span>${escapeHtml(field.label)}</span><select name="${field.name}">${Object.entries(field.options).map(([key,label])=>`<option value="${key}"${selected === key ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></label>`;
     }
     if (field.type === "boolean") return `<label class="toggle field--wide"><input name="${field.name}" type="checkbox"${value !== false ? " checked" : ""}>${escapeHtml(field.label)}</label>`;

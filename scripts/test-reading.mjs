@@ -158,12 +158,21 @@ assert.equal(
 );
 assert.equal(identifyLink("https://github.com/person/project").kind, "code");
 assert.equal(identifyLink("https://materials.invalid/report.pdf").kind, "pdf");
-assert.equal(awardCategory({ title: "优秀毕业生" }), "honor");
-assert.equal(awardCategory({ title: "学习优秀奖学金" }), "award");
-assert.equal(
-  awardCategory({ title: "优秀毕业生", category: "award" }),
-  "award",
-);
+for (const [item, expected] of [
+  [{ title: "优秀毕业生" }, "honor"],
+  [{ title: "校级三好学生" }, "honor"],
+  [{ title: "数学建模竞赛一等奖" }, "competition"],
+  [{ title: "竞赛优秀组织奖项" }, "competition"],
+  [{ title: "学习优秀奖学金" }, "scholarship"],
+  [{ title: "创新创业一等奖学金" }, "scholarship"],
+  [{ title: "Scholarship for Excellence" }, "scholarship"],
+  [{ title: "学习优秀奖学金", category: "award" }, "scholarship"],
+  [{ title: "数学建模竞赛一等奖", category: "award" }, "competition"],
+  [{ title: "优秀毕业生", category: "award" }, "competition"],
+  [{ title: "学习优秀奖学金", category: "competition" }, "competition"],
+  [{ title: "竞赛一等奖", category: "scholarship" }, "scholarship"],
+  [{ title: "学习优秀奖学金", category: "honor" }, "honor"],
+]) assert.equal(awardCategory(item), expected, JSON.stringify(item));
 
 const content = structuredClone(base);
 for (const section of readingSections) {

@@ -1,9 +1,14 @@
 {%- assign category = include.item.category -%}
-{%- if category == nil or category == "" -%}
-  {%- assign category = "award" -%}
-  {%- assign title = include.item.title -%}
-  {%- unless title contains "奖学金" or title contains "奖项" or title contains "等奖" -%}
-    {%- if title contains "优秀毕业生" or title contains "荣誉" or title contains "称号" or title contains "三好学生" or title contains "优秀学生干部" -%}{%- assign category = "honor" -%}{%- endif -%}
-  {%- endunless -%}
-{%- endif -%}
+{%- unless category == "honor" or category == "competition" or category == "scholarship" -%}
+  {%- assign old_category = category -%}
+  {%- assign category = "competition" -%}
+  {%- assign title = include.item.title | downcase -%}
+  {%- if title contains "奖学金" or title contains "scholarship" -%}
+    {%- assign category = "scholarship" -%}
+  {%- elsif old_category != "award" -%}
+    {%- unless title contains "奖项" or title contains "等奖" -%}
+      {%- if title contains "优秀毕业生" or title contains "荣誉" or title contains "称号" or title contains "三好学生" or title contains "优秀学生干部" -%}{%- assign category = "honor" -%}{%- endif -%}
+    {%- endunless -%}
+  {%- endif -%}
+{%- endunless -%}
 {{- category -}}

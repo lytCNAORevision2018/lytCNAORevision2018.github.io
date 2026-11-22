@@ -1,4 +1,4 @@
-{% assign categories = "honor,award" | split: "," %}
+{% assign categories = "honor,competition,scholarship" | split: "," %}
 {% assign award_items = include.items %}
 {% if include.limit %}{% assign award_items = award_items | slice: 0, include.limit %}{% endif %}
 {% for group_category in categories %}
@@ -12,5 +12,5 @@
       {% endif %}
     {% endfor %}
   {% endcapture %}
-  {% if count > 0 %}<div class="award-group"><h3>{% if group_category == "honor" %}荣誉称号{% else %}奖项与奖学金{% endif %}</h3><div class="content-list">{{ entries }}</div></div>{% endif %}
+  {% if count > 0 %}<div class="award-group" data-award-category="{{ group_category }}"><h3>{% case group_category %}{% when "honor" %}荣誉称号{% when "competition" %}竞赛奖项{% when "scholarship" %}奖学金{% endcase %}</h3><div class="content-list">{{ entries }}</div></div>{% endif %}
 {% endfor %}

@@ -67,20 +67,6 @@
   "experiences": [],
   "awards": [
     {
-      "id": "awards-mwq3ha2r",
-      "title": "2026届苏州大学优秀毕业生",
-      "summary": "依据：关于表彰苏州大学2026届本科优秀毕业生的决定（苏大学〔2026〕28号）",
-      "highlights": [],
-      "tags": [],
-      "links": [],
-      "documentPages": [],
-      "featured": true,
-      "published": true,
-      "issuer": "苏州大学",
-      "level": "",
-      "date": "2026年6月"
-    },
-    {
       "id": "awards-mwq3i24k",
       "title": "2024-2025学年度 苏州大学学习优秀二等奖学金",
       "summary": "依据：关于表彰苏州大学2024-2025学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2026〕20号）",
@@ -93,6 +79,20 @@
       "issuer": "苏州大学",
       "level": "校级二等奖学金",
       "date": "2025年12月"
+    },
+    {
+      "id": "awards-mwq3ha2r",
+      "title": "2026届苏州大学优秀毕业生",
+      "summary": "依据：关于表彰苏州大学2026届本科优秀毕业生的决定（苏大学〔2026〕28号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": true,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "",
+      "date": "2026年6月"
     },
     {
       "id": "awards-mwq3javo",
@@ -215,14 +215,13 @@
       "avatar": "website-profile.jpg",
       "nameEn": "Andrej Yanvaryov",
       "summary": "",
-      "institution": "幻想乡铁路局八云邸调度指挥中心/幻想乡铁路局关工委/幻想乡铁路局老干部活动中心",
       "headline": "交通运输规划与管理方向硕士研究生在读",
-      "preferredName": "Andrew Li",
       "researchInterests": [
-        "研究方向：交通规划与管理中的数学方法。",
-        "Research Fields:Mathematical Methods in Transportation Planning and Management."
+        "交通规划与管理中的数学方法/Mathematical Methods in Transportation Planning and Management."
       ],
-      "name": "一只波兰立陶宛联邦球"
+      "preferredName": "Andrew Li",
+      "name": "一只波兰立陶宛联邦球",
+      "institution": "幻想乡铁路局八云邸调度指挥中心"
     },
     "home": {
       "sections": [
@@ -295,7 +294,7 @@
     "text": {
       "home": {
         "preferredName": {
-          "visible": false,
+          "visible": true,
           "label": "常用英文名："
         },
         "interests": {
@@ -334,11 +333,11 @@
         }
       },
       "footer": {
-        "contactVisible": false,
-        "copyrightVisible": true,
+        "contactVisible": true,
+        "copyrightVisible": false,
         "creditsVisible": true,
         "noteVisible": true,
-        "note": "",
+        "note": "部分参考资料来自互联网。",
         "updated": {
           "visible": true,
           "mode": "publish",

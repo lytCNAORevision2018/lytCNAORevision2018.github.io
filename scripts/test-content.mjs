@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { contentRevision, resolvedWebsiteProfile, resolvedWebsiteText, websiteTextDefaults, toPublishedContent, validateContent } from "../tools/site-manager/lib/content.mjs";
+import { contentRevision, resolvedWebsiteProfile, resolvedWebsiteText, websiteTextDefaults, sectionKeys, toPublishedContent, validateContent } from "../tools/site-manager/lib/content.mjs";
+import { createItemId, normalizeLegacyItemIds } from "../tools/site-manager/public/item-ids.mjs";
 
 const source = JSON.parse(await readFile(new URL("../_data/site_content.json", import.meta.url), "utf8"));
 
@@ -14,6 +15,39 @@ function expectError(content, pattern) {
 }
 
 assert.deepEqual(validateContent(source), [], "当前公开内容必须通过校验");
+
+{
+  const ids = new Set();
+  const content = copy();
+  for (const key of sectionKeys) {
+    for (let index = 0; index < 100; index += 1) {
+      const id = createItemId(key);
+      assert.match(id, /^[a-z0-9][a-z0-9-]{0,63}$/, `${key} 自动生成的编号必须通过统一校验`);
+      assert.ok(!ids.has(id), "连续新增条目不能产生重复编号");
+      ids.add(id);
+    }
+    content[key].push({ id: createItemId(key), title: "自动编号测试", published: false, featured: false, highlights: [], tags: [], links: [] });
+  }
+  assert.deepEqual(validateContent(content), []);
+}
+
+{
+  const content = copy();
+  content.outsideResearch.push(...[1, 2, 3].map((index) => ({ id: `outsideResearch-miv7test${index}`, title: `保留条目 ${index}`, summary: "保留原文字", published: false, featured: false, highlights: ["保留要点"], tags: [], links: [] })));
+  const before = structuredClone(content);
+  expectError(content, /ID 格式不正确/);
+  const normalized = normalizeLegacyItemIds(content);
+  assert.deepEqual(content, before, "编号兼容处理不能修改原输入");
+  assert.deepEqual(validateContent(normalized), []);
+  const expected = structuredClone(before);
+  for (const item of expected.outsideResearch) item.id = item.id.toLowerCase();
+  assert.deepEqual(normalized, expected, "只能调整已知错误编号，其余内容必须保留");
+  assert.strictEqual(normalizeLegacyItemIds(normalized), normalized, "重复保存不应再次改动编号");
+  normalized.outsideResearch.push({ ...normalized.outsideResearch.at(-1), id: "outsideResearch-miv7test3" });
+  expectError(normalizeLegacyItemIds(normalized), /重复 ID/);
+  normalized.outsideResearch.at(-1).id = "unsafe/../id";
+  expectError(normalizeLegacyItemIds(normalized), /ID 格式不正确/);
+}
 
 {
   const content = copy();

@@ -1,3 +1,5 @@
+import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
+
 (() => {
   "use strict";
 
@@ -406,7 +408,7 @@
 
   function newItem(sectionKey) {
     return {
-      id: `${sectionKey}-${Date.now().toString(36)}`,
+      id: createItemId(sectionKey),
       title: "",
       summary: "",
       highlights: [],
@@ -722,6 +724,7 @@
     }
     setBusy(true);
     try {
+      state.content = normalizeLegacyItemIds(state.content);
       const payload = await api("/api/content", {
         method: "PUT",
         body: JSON.stringify({
@@ -761,6 +764,7 @@
     let draftSavedForPublish = false;
     try {
       if (state.dirty) {
+        state.content = normalizeLegacyItemIds(state.content);
         const saved = await api("/api/content", {
           method: "PUT",
           body: JSON.stringify({

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "meta": {
-    "siteTitle": "李雨桐 | Yutong Li",
+    "siteTitle": "一只波兰立陶宛联邦球",
     "description": "欢迎来到本人的个人主页。",
     "siteUrl": "https://lytcnaorevision2018.github.io/",
     "lastUpdated": "2026-11-22"
@@ -12,15 +12,15 @@
     "preferredName": "Andrew Li",
     "pronouns": "他 / He/Him",
     "headline": "交通运输规划与管理方向硕士研究生",
-    "summary": "苏州大学交通运输专业本科毕业，推荐免试攻读交通运输工程专业交通运输规划与管理方向学术学位硕士研究生。",
+    "summary": "苏州大学交通运输专业本科毕业，推荐免试攻读本校交通运输工程专业交通运输规划与管理方向学术学位硕士研究生。\n研究方向：交通规划与管理中的数学方法。",
     "motto": "东风上韶山，和谐向复兴",
     "institution": "苏州大学",
     "location": "江苏省苏州市 / 黑龙江省佳木斯市",
     "email": "twahzlixuanyuan@163.com",
     "avatar": "profile-user.jpg",
     "researchInterests": [
-      "交通运输规划与管理",
-      "交通规划中的数学方法"
+      "交通规划与管理中的数学方法",
+      "Mathematical Methods in Transportation Planning and Management"
     ],
     "links": {
       "github": "https://github.com/lytCNAORevision2018",
@@ -39,11 +39,14 @@
       "department": "轨道交通学院",
       "period": "2026.09 - 2029.06（预计）",
       "summary": "交通运输工程专业，交通运输规划与管理方向，推荐免试。",
-      "highlights": [],
+      "highlights": [
+        "决定“推免”：苏州大学二零二五年第二十一次校长办公会、中国共产党苏州大学第十三届委员会第151次常委会会议，报部批准。"
+      ],
       "tags": [],
       "links": [],
       "featured": true,
-      "published": true
+      "published": true,
+      "documentPages": []
     },
     {
       "id": "suda-bachelor-2022",
@@ -51,12 +54,13 @@
       "institution": "苏州大学",
       "department": "轨道交通学院",
       "period": "2022.09 - 2026.06",
-      "summary": "交通运输专业。",
+      "summary": "交通运输专业，获工学学士学位。",
       "highlights": [],
       "tags": [],
       "links": [],
       "featured": true,
-      "published": true
+      "published": true,
+      "documentPages": []
     }
   ],
   "projects": [],
@@ -84,7 +88,7 @@
       "tags": [],
       "links": [],
       "documentPages": [],
-      "featured": true,
+      "featured": false,
       "published": true,
       "issuer": "苏州大学",
       "level": "校级二等奖学金",
@@ -145,6 +149,48 @@
       "issuer": "苏州大学",
       "level": "校级精神文明奖学金",
       "date": "2024年12月"
+    },
+    {
+      "id": "awards-mwr5luil",
+      "title": "2022-2023年学年度 苏州大学学习优秀二等奖学金",
+      "summary": "依据：关于表彰苏州大学2022-2023学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2024〕14号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": false,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级二等奖学金",
+      "date": "2023年12月"
+    },
+    {
+      "id": "awards-mwr5ob5p",
+      "title": "2022-2023年学年度 苏州大学创新创业二等奖学金",
+      "summary": "依据：关于表彰苏州大学2022-2023学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2024〕14号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": false,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级二等奖学金",
+      "date": "2023年12月"
+    },
+    {
+      "id": "awards-mwr5p09p",
+      "title": "2022-2023年学年度 苏州大学综合奖学金",
+      "summary": "依据：关于表彰苏州大学2022-2023学年校设奖学金及捐赠奖学金获奖学生的决定（苏大学〔2024〕14号）",
+      "highlights": [],
+      "tags": [],
+      "links": [],
+      "documentPages": [],
+      "featured": false,
+      "published": true,
+      "issuer": "苏州大学",
+      "level": "校级综合奖学金",
+      "date": "2023年12月"
     }
   ],
   "talks": [],
@@ -166,7 +212,17 @@
   "skills": [],
   "website": {
     "profile": {
-      "avatar": "website-profile.jpg"
+      "avatar": "website-profile.jpg",
+      "nameEn": "Andrej Yanvaryov",
+      "summary": "",
+      "institution": "幻想乡铁路局八云邸调度指挥中心/幻想乡铁路局关工委/幻想乡铁路局老干部活动中心",
+      "headline": "交通运输规划与管理方向硕士研究生在读",
+      "preferredName": "Andrew Li",
+      "researchInterests": [
+        "研究方向：交通规划与管理中的数学方法。",
+        "Research Fields:Mathematical Methods in Transportation Planning and Management."
+      ],
+      "name": "一只波兰立陶宛联邦球"
     },
     "home": {
       "sections": [
@@ -190,7 +246,7 @@
           "key": "experiences",
           "title": "实习与实践",
           "description": "",
-          "visible": true,
+          "visible": false,
           "source": "featured",
           "limit": 3
         },
@@ -198,7 +254,7 @@
           "key": "awards",
           "title": "荣誉与奖项",
           "description": "",
-          "visible": true,
+          "visible": false,
           "source": "featured",
           "limit": 3
         },
@@ -206,7 +262,7 @@
           "key": "talks",
           "title": "分享与讲座",
           "description": "",
-          "visible": true,
+          "visible": false,
           "source": "featured",
           "limit": 3
         },
@@ -214,7 +270,7 @@
           "key": "notes",
           "title": "笔记与习题",
           "description": "",
-          "visible": true,
+          "visible": false,
           "source": "featured",
           "limit": 3
         },
@@ -222,7 +278,7 @@
           "key": "outsideResearch",
           "title": "科研学习以外",
           "description": "",
-          "visible": true,
+          "visible": false,
           "source": "featured",
           "limit": 3
         },
@@ -239,7 +295,7 @@
     "text": {
       "home": {
         "preferredName": {
-          "visible": true,
+          "visible": false,
           "label": "常用英文名："
         },
         "interests": {
@@ -259,7 +315,7 @@
           "label": "GitHub"
         },
         "more": {
-          "visible": true,
+          "visible": false,
           "label": "查看全部"
         }
       },
@@ -278,7 +334,7 @@
         }
       },
       "footer": {
-        "contactVisible": true,
+        "contactVisible": false,
         "copyrightVisible": true,
         "creditsVisible": true,
         "noteVisible": true,

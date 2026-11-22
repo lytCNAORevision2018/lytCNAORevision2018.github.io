@@ -624,8 +624,42 @@ async function testConcurrentHeadStopsPublish(root) {
   }
 }
 
+async function testLegacyItemIds(root) {
+  const scenarioRoot = join(root, "legacy-item-ids");
+  await mkdir(scenarioRoot, { recursive: true });
+  const scenario = await createScenario(scenarioRoot);
+  const manager = await startManager(scenario, scenarioRoot);
+  try {
+    const initial = await manager.request("/api/content");
+    assert.equal(initial.status, 200);
+    const legacy = structuredClone(initial.payload.content);
+    legacy.outsideResearch.push(...[1, 2, 3].map((index) => ({ id: `outsideResearch-miv7test${index}`, title: `原页面条目 ${index}`, summary: "不能丢失的正文", published: false, featured: false, highlights: ["保留要点"], tags: [], links: [] })));
+    const expected = structuredClone(legacy);
+    for (const item of expected.outsideResearch) item.id = item.id.toLowerCase();
+    const save = (content, revision) => manager.request("/api/content", { method: "PUT", body: { content, baseRevision: revision, baseCommit: initial.payload.baseCommit } });
+    const saved = await save(legacy, initial.payload.revision);
+    assert.equal(saved.status, 200, JSON.stringify(saved.payload));
+    const working = await manager.request("/api/content");
+    assert.deepEqual(working.payload.content, expected, "旧页面的三项内容应完整保存，只修正编号大小写");
+    assert.equal(saved.payload.revision, working.payload.revision);
+    const repeated = await save(legacy, saved.payload.revision);
+    assert.equal(repeated.status, 200, "尚未刷新的旧页面应能继续保存");
+    assert.equal(repeated.payload.revision, saved.payload.revision);
+    assert.equal((await save(legacy, initial.payload.revision)).status, 409, "兼容编号不能绕过并发保存保护");
+    const duplicate = structuredClone(legacy);
+    duplicate.outsideResearch.push({ ...duplicate.outsideResearch.at(-1), id: "outsideresearch-miv7test3" });
+    const collision = await save(duplicate, saved.payload.revision);
+    assert.equal(collision.status, 422);
+    assert.ok(collision.payload.details.some((message) => /重复 ID/.test(message)));
+    assert.deepEqual((await manager.request("/api/content")).payload.content, expected, "失败保存不能改动草稿");
+    assert.equal(await remoteMaster(scenario), scenario.baseCommit, "修复保存不能自动公开内容");
+  } finally { await manager.stop(); }
+}
+
 const temporaryRoot = await mkdtemp(join(tmpdir(), "site-manager-integration-"));
 try {
+  await testLegacyItemIds(temporaryRoot);
+  console.log("旧页面编号兼容、三项保留与并发保存保护测试通过。");
   await testMediaAndCandidateTransactions(temporaryRoot);
   console.log("媒体事务与候选收据测试通过。");
   await testPdfDisplayChoices(temporaryRoot);

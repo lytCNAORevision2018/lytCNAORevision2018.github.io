@@ -26,6 +26,7 @@ import {
   toPublishedContent,
   validateContent
 } from "./lib/content.mjs";
+import { normalizeLegacyItemIds } from "./public/item-ids.mjs";
 
 const execFileAsync = promisify(execFile);
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
@@ -179,6 +180,7 @@ const mimeTypes = {
   ".jpeg": "image/jpeg",
   ".jpg": "image/jpeg",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
@@ -624,6 +626,7 @@ async function saveDraft(content, baseRevision, baseCommit, { pruneTalkDocuments
     error.statusCode = 409;
     throw error;
   }
+  content = normalizeLegacyItemIds(content);
   const errors = validateContent(content);
   if (errors.length > 0) {
     const error = new Error("内容校验未通过。");

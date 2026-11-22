@@ -10,10 +10,10 @@
 - 本机未公开内容保存在 `.site-manager/draft.json`，不得提交。
 - 尚未正式发布的管理器候选由 `.site-manager/pending-publish.json` 绑定完整 SHA 与远端父提交；不得手改、删除或用手工提交冒充候选。
 - 共享头像和网站独立头像分别由管理器写入 `images/profile-user.*` 与 `images/website-profile.*`；替换或移除成功后，管理器会清理不再引用的扩展版本。
-- 每份讲义可在管理器中选择原 PDF 或逐页图片。公开文件统一位于 `images/talk-documents/`；图片模式的原 PDF 仅保存在本机草稿缓存。
+- 项目、实践、分享、笔记和博客的每份附件可在管理器中选择原 PDF 或逐页图片。公开文件统一位于 `images/talk-documents/`；图片模式的原 PDF 仅保存在本机草稿缓存。
 - 不要在首页、栏目页和简历模板中重复维护同一份个人资料。
 
-首次站点迁移是一次性例外：只有远端仍处于程序记录的迁移基线时，管理器才允许提交经过人工核对的整套改造文件。首次迁移完成后，日常发布范围收窄为公开内容 JSON、头像和所选讲义附件。
+首次站点迁移是一次性例外：只有远端仍处于程序记录的迁移基线时，管理器才允许提交经过人工核对的整套改造文件。首次迁移完成后，日常发布范围收窄为公开内容 JSON、头像、所选附件和由公开正文生成的 `reading/` 独立页。
 
 ## 二、代码与工作流变更
 
@@ -34,6 +34,7 @@
 所有变更至少运行以下 Node.js 检查：
 
 ```powershell
+node scripts/test-reading.mjs
 node scripts/test-content.mjs
 node scripts/test-site-manager.mjs
 node scripts/validate-content.mjs
@@ -72,11 +73,11 @@ node scripts/audit-site.mjs --site _site
 
 ## 五、PDF 规则
 
-- 依据维护者要求，每条“分享与讲座”可以选择“原 PDF”或“逐页图片”，旧条目默认沿用图片方式。
-- 只有勾选公开、且明确选择原 PDF 的讲义，其 `documentPdf` 引用的 `images/talk-documents/<条目>/<版本>/document.pdf` 才允许进入公开提交和构建产物。
+- 项目、实习与实践、分享与讲座、笔记与习题、科研学习以外均支持附件；可选择“原 PDF”或“逐页图片”，旧条目默认沿用图片方式。
+- 只有勾选公开、且明确选择原 PDF 的附件，其 `documentPdf` 引用的 `images/talk-documents/<条目>/<版本>/document.pdf` 才允许进入公开提交和构建产物。
 - 图片方式只发布 `documentPages` 引用的页面图片，不公开本机缓存中的原件。未公开条目的两种文件都不得进入公开提交。
 - 原件与图片模式都应在编辑窗口检查预览；图片转换继续使用 Poppler。
-- 普通资料链接继续使用网页；讲义通过上述上传入口管理，不手工添加其他 PDF 或 `/files/` 链接。
+- 资料链接允许外部网页、arXiv 和外部 PDF，并保留自动识别 / 手动类型选择。本地 PDF 仍必须经过附件上传，不手工添加 `/files/` 链接。
 - 切换或移除仅影响当前公开树；旧历史、缓存和外部备份中的文件不会自动消失。
 
 如确需重写历史以清除旧 PDF，必须单独评估影响并取得明确授权。不要在普通内容或代码贡献中执行强制推送。
@@ -89,3 +90,12 @@ node scripts/audit-site.mjs --site _site
 4. 检查没有未选择公开的 PDF、模板占位内容、失效站内链接和意外公开的本机文件。
 5. 在提交说明中记录已执行的检查及未能执行的检查。
 6. 通过候选验证或人工审查流程合并，不直接推送 `master`。
+
+## 七、独立阅读页与转换依赖
+
+- 正文保存在同一内容源的 `body`，格式为 `markdown` 或 `latex`。公开内容页由管理器生成到 `reading/<栏目>/<条目>/index.html`，无需自定义 Jekyll 插件。
+- `reading/` 是受管产物，不手工编辑；删除、取消公开、切换成外链或摘要时，发布事务同步移除产物。事务失败须恢复目录、内容 JSON、附件与暂存区。
+- LaTeX 使用 Pandoc 的沙箱文档解析器，不运行 TeX 编译、系统命令或自定义过滤器。输入的未知命令必须被报告，不能依赖转换器默认静默丢弃。
+- 本机已安装 ResearchBoost WSL 中的 Pandoc 3.1.3；Windows 管理器在没有本机 `pandoc` 时自动调用它。云端验证使用 Ubuntu 24.04 的同版软件包。
+- Markdown、清理器与公式排版器已打包在 `tools/site-manager/vendor/reader.cjs`；公式样式和字体位于 `assets/reader/`，访客不需要连接 CDN。维护依赖时执行 `npm ci` 和 `npm run build:reader`，保留锁文件及许可文件。
+- 独立页必须通过与 JSON 正文重新生成结果的逐文件比对；不可通过关闭审计或放开整个 PDF 目录来添加功能。

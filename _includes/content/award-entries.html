@@ -1,0 +1,16 @@
+{% assign categories = "honor,award" | split: "," %}
+{% assign award_items = include.items %}
+{% if include.limit %}{% assign award_items = award_items | slice: 0, include.limit %}{% endif %}
+{% for group_category in categories %}
+  {% assign count = 0 %}
+  {% capture entries %}
+    {% for award in award_items %}
+      {% capture type %}{% include content/award-category.html item=award %}{% endcapture %}
+      {% if type == group_category %}
+        {% assign count = count | plus: 1 %}
+        {% include content/entry.html item=award %}
+      {% endif %}
+    {% endfor %}
+  {% endcapture %}
+  {% if count > 0 %}<div class="award-group"><h3>{% if group_category == "honor" %}荣誉称号{% else %}奖项与奖学金{% endif %}</h3><div class="content-list">{{ entries }}</div></div>{% endif %}
+{% endfor %}

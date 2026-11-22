@@ -656,8 +656,66 @@ async function testLegacyItemIds(root) {
   } finally { await manager.stop(); }
 }
 
+async function testReadingAndPracticeDocuments(root) {
+  const scenarioRoot=join(root,"reading-and-practice");
+  await mkdir(scenarioRoot,{recursive:true});
+  const scenario=await createScenario(scenarioRoot);
+  const manager=await startManager(scenario,scenarioRoot);
+  const pdfServer=http.createServer((request,response)=>{response.writeHead(200,{"Content-Type":"application/pdf"});response.end(request.method === "HEAD" ? undefined : minimalPdf());});
+  pdfServer.listen(0,"127.0.0.1");await once(pdfServer,"listening");
+  const pdfUrl=`http://127.0.0.1:${pdfServer.address().port}/external.pdf`;
+  const item=(id,extra={})=>({id,title:`阅读测试 ${id}`,summary:"课程与实践的独立阅读页",published:true,featured:false,highlights:[],tags:[],links:[],...extra});
+  const save=async content=>{const current=(await manager.request("/api/content")).payload;const saved=await manager.request("/api/content",{method:"PUT",body:{content,baseRevision:current.revision,baseCommit:current.baseCommit}});assert.equal(saved.status,200,JSON.stringify(saved.payload));return saved.payload;};
+  const candidate=async revision=>{const result=await manager.request("/api/publish",{method:"POST",body:{revision}});assert.equal(result.status,503,JSON.stringify(result.payload));assert.match(result.payload.message,/origin|GitHub/i);await assertCandidateState(scenario);};
+  try {
+    const initial=(await manager.request("/api/content")).payload;
+    const upload=async(sectionKey,mode)=>{const result=await manager.request("/api/talk-document",{method:"POST",body:{sectionKey,itemId:"shared-id",mode,mimeType:"application/pdf",data:minimalPdf().toString("base64"),baseRevision:initial.revision}});assert.equal(result.status,200,JSON.stringify(result.payload));return result.payload;};
+    const practice=await upload("experiences","pdf");
+    const notes=await upload("notes","images");
+    assert.notEqual(practice.pdf.split("/")[3],notes.pdf.split("/")[3],"跨栏目同编号附件应独立");
+    const content=structuredClone(initial.content);
+    content.experiences.push(item("shared-id",{course:"实习专题",body:"## 实践过程\n\n公式 $x^2$。",bodyFormat:"markdown",documentMode:practice.mode,documentPdf:practice.pdf,documentPages:practice.pages,links:[{label:"外部报告",url:pdfUrl,kind:"pdf"}]}));
+    content.notes.push(item("shared-id",{course:"课程主页",body:String.raw`\documentclass{ctexart}\begin{document}\section{中文讲义}公式 $x^2$。\end{document}`,bodyFormat:"latex",documentMode:notes.mode,documentPdf:notes.pdf,documentPages:notes.pages}));
+    content.outsideResearch.push(item("blog-record",{body:"## 一段记录\n\n生活博客正文。",course:"随笔"}),item("private-record",{published:false,body:"保密草稿"}));
+    content.projects.push(item("external-paper",{readingMode:"external",body:"保留的正文入口",links:[{label:"arXiv",url:"https://arxiv.org/abs/2301.12345",kind:"arxiv"}]}));
+    let saved=await save(content);
+    assert.equal((await manager.request("/api/render-body",{method:"POST",body:{body:content.notes.at(-1).body,bodyFormat:"latex"}})).status,200);
+    assert.equal((await manager.request("/api/render-body",{method:"POST",body:{body:String.raw`\begin{document}\unknownCommand{x}\end{document}`,bodyFormat:"latex"}})).status,422);
+    const forged=structuredClone(content);forged.notes.at(-1).documentPdf=practice.pdf;
+    const rejected=await manager.request("/api/content",{method:"PUT",body:{content:forged,baseRevision:saved.revision}});assert.equal(rejected.status,422);
+    const remove=await manager.request("/api/talk-document/remove",{method:"POST",body:{sectionKey:"experiences",itemId:"shared-id",documentId:practice.documentId,baseRevision:saved.revision}});assert.equal(remove.status,409);
+    await candidate(saved.revision);
+    const readingFile=join(scenario.repository,"reading/notes/shared-id/index.html");
+    assert.match(await readFile(readingFile,"utf8"),/katex-mathml/);
+    assert.ok(await exists(join(scenario.repository,"reading/experiences/shared-id/index.html")));
+    assert.ok(await exists(join(scenario.repository,"reading/outsideresearch/blog-record/index.html")));
+    assert.equal(await exists(join(scenario.repository,"reading/outsideresearch/private-record/index.html")),false);
+    assert.equal(await exists(join(scenario.repository,"reading/projects/external-paper/index.html")),false);
+    assert.ok(await exists(publicPagePath(scenario.repository,practice.pdf)));
+    assert.equal(await exists(publicPagePath(scenario.repository,notes.pdf)),false);
+    const before=await readFile(readingFile);
+    content.notes.at(-1).body += " 后续修改";saved=await save(content);
+    const rogue=join(scenario.repository,"images/unmanaged-reading.pdf");await writeFile(rogue,minimalPdf());
+    const failed=await manager.request("/api/publish",{method:"POST",body:{revision:saved.revision}});
+    assert.match(failed.payload.message,/未选择公开的 PDF/);
+    assert.deepEqual(await readFile(readingFile),before,"失败应恢复独立阅读页");await rm(rogue);
+    content.notes.at(-1).published=false;saved=await save(content);await candidate(saved.revision);
+    assert.equal(await exists(readingFile),false,"取消公开应移除独立页");
+    assert.match((await manager.request("/api/content")).payload.content.notes.at(-1).body,/后续修改/);
+    assert.ok(await exists(draftPagePath(scenario.repository,notes.pages[0])),"取消公开应保留本地附件");
+    const privateBad=item("unsupported-tex",{published:false,body:String.raw`\begin{document}\unknownCommand{x}\end{document}`,bodyFormat:"latex"});
+    content.notes.push(privateBad);saved=await save(content);
+    privateBad.published=true;saved=await save(content);
+    const blocked=await manager.request("/api/publish",{method:"POST",body:{revision:saved.revision}});
+    assert.match(blocked.payload.message,/不支持|unknownCommand/);
+    assert.equal(await remoteMaster(scenario),scenario.baseCommit,"隔离验证不得更新真实或模拟公开分支");
+  }finally{await manager.stop();await new Promise(resolve=>pdfServer.close(resolve));}
+}
+
 const temporaryRoot = await mkdtemp(join(tmpdir(), "site-manager-integration-"));
 try {
+  await testReadingAndPracticeDocuments(temporaryRoot);
+  console.log("课程 / 博客独立页、实践 PDF、外部 PDF、LaTeX 预览、公开过滤与回滚测试通过。");
   await testLegacyItemIds(temporaryRoot);
   console.log("旧页面编号兼容、三项保留与并发保存保护测试通过。");
   await testMediaAndCandidateTransactions(temporaryRoot);

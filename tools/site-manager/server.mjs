@@ -17,6 +17,8 @@ import {
 } from "node:fs/promises";
 import {
   contentRevision,
+  documentItems,
+  documentOwner,
   parseTalkDocumentFile,
   parseTalkDocumentPdf,
   talkDocumentFiles,
@@ -27,6 +29,8 @@ import {
   validateContent
 } from "./lib/content.mjs";
 import { normalizeLegacyItemIds } from "./public/item-ids.mjs";
+import { readingSections } from "./public/content-options.mjs";
+import { renderBody, syncArticleFiles } from "./lib/articles.mjs";
 
 const execFileAsync = promisify(execFile);
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
@@ -40,6 +44,7 @@ const draftTalkDocumentDirectory = resolve(localStateDirectory, "talk-documents"
 const pdfTemporaryRoot = resolve(localStateDirectory, "pdf-temp");
 const publishTalkTemporaryRoot = resolve(localStateDirectory, "publish-talk-documents");
 const publicTalkDocumentDirectory = resolve(repositoryRoot, "images", "talk-documents");
+const publicReadingDirectory = resolve(repositoryRoot,"reading");
 const profileAvatarNames = ["profile-user.jpg", "profile-user.jpeg", "profile-user.png", "profile-user.webp"];
 const profileAvatarPaths = profileAvatarNames.map((name) => resolve(repositoryRoot, "images", name));
 const websiteAvatarNames = ["website-profile.jpg", "website-profile.jpeg", "website-profile.png", "website-profile.webp"];
@@ -164,6 +169,7 @@ const bootstrapManagedPaths = [
 ];
 
 const dailyManagedPaths = [
+  "reading",
   "_data/site_content.json",
   "images/profile-user.jpg",
   "images/profile-user.jpeg",
@@ -185,6 +191,7 @@ const mimeTypes = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".webp": "image/webp"
+  ,".woff2": "font/woff2", ".woff":"font/woff", ".ttf":"font/ttf"
 };
 
 let operationQueue = Promise.resolve();
@@ -447,11 +454,11 @@ async function renderTalkPdf(itemId, bytes, mode = "images") {
 }
 
 async function materializeDraftTalkDocuments(content, publishedContent) {
-  const publishedPages = new Set((publishedContent.talks || []).flatMap(talkDocumentFiles));
-  for (const talk of content.talks || []) {
+  const publishedPages = new Set(documentItems(publishedContent).flatMap(talkDocumentFiles));
+  for (const talk of documentItems(content)) {
     for (const page of talkDocumentFiles(talk)) {
       const parsed = parseTalkDocumentFile(page);
-      if (!parsed || parsed.itemId !== talk.id) {
+      if (!parsed || parsed.itemId !== talk.documentOwner) {
         throw clientError(`讲座“${talk.title}”包含不安全的讲义页面路径。`);
       }
       if (publishedPages.has(page)) continue;
@@ -473,10 +480,10 @@ async function syncPublishedTalkDocuments(content) {
   try {
     const copiedPages = new Set();
     let totalBytes = 0;
-    for (const talk of content.talks) {
+    for (const talk of documentItems(content)) {
       for (const page of talkDocumentFiles(talk)) {
         const parsed = parseTalkDocumentFile(page);
-        if (!parsed || parsed.itemId !== talk.id) throw clientError(`讲座“${talk.title}”包含不安全的讲义页面路径。`);
+        if (!parsed || parsed.itemId !== talk.documentOwner) throw clientError(`讲座“${talk.title}”包含不安全的讲义页面路径。`);
         const relativePage = `${parsed.itemId}/${parsed.documentId}/${parsed.fileName}`;
         if (copiedPages.has(relativePage)) continue;
         const draftFile = resolve(draftTalkDocumentDirectory, parsed.itemId, parsed.documentId, parsed.fileName);
@@ -522,10 +529,10 @@ function avatarTarget(content, scope) {
 }
 
 async function validateTalkDocumentFiles(content) {
-  for (const talk of content.talks || []) {
+  for (const talk of documentItems(content)) {
     for (const page of talkDocumentFiles(talk)) {
       const parsed = parseTalkDocumentFile(page);
-      if (!parsed || parsed.itemId !== talk.id) continue;
+      if (!parsed || parsed.itemId !== talk.documentOwner) continue;
       const draftFile = resolve(draftTalkDocumentDirectory, parsed.itemId, parsed.documentId, parsed.fileName);
       const publicFile = resolve(publicTalkDocumentDirectory, parsed.itemId, parsed.documentId, parsed.fileName);
       if (!(await exists(draftFile)) && !(await exists(publicFile))) {
@@ -539,7 +546,7 @@ async function validateTalkDocumentFiles(content) {
 async function pruneDraftTalkDocuments(content) {
   if (!(await exists(draftTalkDocumentDirectory))) return;
   const referenced = new Set();
-  for (const talk of content.talks || []) {
+  for (const talk of documentItems(content)) {
     for (const page of talkDocumentFiles(talk)) {
       const parsed = parseTalkDocumentFile(page);
       if (parsed) referenced.add(`${parsed.itemId}/${parsed.documentId}`);
@@ -1122,10 +1129,10 @@ function shanghaiDate() {
   }).format(new Date());
 }
 
-function externalReferences(content) {
+async function externalReferences(content) {
   const references = new Map();
-  const add = (url, label) => {
-    if (typeof url === "string" && /^https?:\/\//i.test(url)) references.set(url, label);
+  const add = (url, label, allowPdf = false) => {
+    if (typeof url === "string" && /^https?:\/\//i.test(url)) { const previous = references.get(url); references.set(url, {label,allowPdf:previous ? previous.allowPdf && allowPdf : allowPdf}); }
   };
   add(content.meta?.siteUrl, "站点地址");
   for (const [name, url] of Object.entries(content.profile?.links || {})) add(url, `个人链接 ${name}`);
@@ -1133,10 +1140,11 @@ function externalReferences(content) {
   add(content.website?.profile?.avatar, "网站独立头像");
   for (const section of sectionDefinitions) {
     for (const item of content[section.key] || []) {
-      for (const link of item.links || []) add(link.url, `${section.label}“${item.title}”`);
+      for (const link of item.links || []) add(link.url, `${section.label}“${item.title}”`,true);
+      if(item.body && readingSections.includes(section.key) && item.readingMode !== "external" && item.readingMode !== "summary") for(const url of (await renderBody(item.body,item.bodyFormat || "markdown")).links) add(url,`${section.label}“${item.title}”正文`,true);
     }
   }
-  return [...references.entries()].map(([url, label]) => ({ url, label }));
+  return [...references.entries()].map(([url, data]) => ({ url, ...data }));
 }
 
 function containsPdfMarker(value) {
@@ -1191,7 +1199,7 @@ function prefixIsPdf(prefix) {
 async function auditExternalReferences(content) {
   const warnings = [];
   const hardErrors = [];
-  const references = externalReferences(content);
+  const references = await externalReferences(content);
   let nextIndex = 0;
   async function checkNextReference() {
     const index = nextIndex;
@@ -1205,7 +1213,7 @@ async function auditExternalReferences(content) {
         signal: AbortSignal.timeout(12000),
         headers: { "User-Agent": "Yutong-Li-Site-Manager/1.0" }
       });
-      if (responseIsPdf(headResponse)) throw clientError(`${reference.label} 实际返回 PDF，不允许发布：${reference.url}`);
+      if (!reference.allowPdf && responseIsPdf(headResponse)) throw clientError(`${reference.label} 实际返回 PDF，不允许发布：${reference.url}`);
       if ([404, 410].includes(headResponse.status)) throw clientError(`${reference.label} 无法访问（HTTP ${headResponse.status}）：${reference.url}`);
 
       const getResponse = await fetch(reference.url, {
@@ -1218,7 +1226,7 @@ async function auditExternalReferences(content) {
         }
       });
       const prefix = await readResponsePrefix(getResponse);
-      if (responseIsPdf(getResponse) || prefixIsPdf(prefix)) {
+      if (!reference.allowPdf && (responseIsPdf(getResponse) || prefixIsPdf(prefix))) {
         throw clientError(`${reference.label} 实际返回 PDF，不允许发布：${reference.url}`);
       }
       const effectiveStatus = [405, 501].includes(getResponse.status) ? headResponse.status : getResponse.status;
@@ -1241,15 +1249,18 @@ async function snapshotPublishState() {
   const talkDocumentsBackup = resolve(root, "talk-documents");
   const hadContent = await exists(publishedContentPath);
   const hadTalkDocuments = await exists(publicTalkDocumentDirectory);
+  const hadReading = await exists(publicReadingDirectory);
+  const readingBackup = resolve(root,"reading");
   const { stdout: indexTreeOutput } = await git(["write-tree"]);
   const avatarSnapshot = await snapshotOptionalFiles(allAvatarPaths);
   await mkdir(root, { recursive: true });
   if (hadContent) await copyFile(publishedContentPath, contentBackup);
   if (hadTalkDocuments) await copyDirectory(publicTalkDocumentDirectory, talkDocumentsBackup);
+  if (hadReading) await copyDirectory(publicReadingDirectory,readingBackup);
   return {
     root,
     contentBackup,
-    talkDocumentsBackup,
+    talkDocumentsBackup, hadReading, readingBackup,
     hadContent,
     hadTalkDocuments,
     avatarSnapshot,
@@ -1268,6 +1279,8 @@ async function restorePublishState(snapshot) {
   } else {
     await rm(publicTalkDocumentDirectory, { recursive: true, force: true });
   }
+  if(snapshot.hadReading) await replaceDirectory(snapshot.readingBackup,publicReadingDirectory);
+  else await rm(publicReadingDirectory,{recursive:true,force:true});
   await restoreOptionalFiles(snapshot.avatarSnapshot);
   await git(["read-tree", snapshot.indexTree]);
 }
@@ -1303,13 +1316,14 @@ async function publishContent(content, commitMessage, baseCommit) {
     await syncPublishedAvatar(publicContent);
     await materializeDraftTalkDocuments(content, publicContent);
     await syncPublishedTalkDocuments(publicContent);
+    await syncArticleFiles(repositoryRoot,publicContent);
     await atomicWrite(publishedContentPath, `${JSON.stringify(publicContent, null, 2)}\n`);
     await execFileAsync(process.execPath, [resolve(repositoryRoot, "scripts", "audit-site.mjs"), "--source"], execOptions);
 
     const pathsToStage = await stageableManagedPaths(allowedPaths);
     await git(["add", "-A", "--", ...pathsToStage]);
     const { stdout: stagedPdfOutput } = await git(["diff", "--cached", "--name-only", "--diff-filter=ACMR", "--", "*.pdf", "**/*.pdf"]);
-    const approvedPdfs = new Set(publicContent.talks.filter((talk) => talk.documentMode === "pdf").map((talk) => talk.documentPdf?.slice(1)).filter(Boolean));
+    const approvedPdfs = new Set(documentItems(publicContent).filter((talk) => talk.documentMode === "pdf").map((talk) => talk.documentPdf?.slice(1)).filter(Boolean));
     const unexpectedPdfs = stagedPdfOutput.split(/\r?\n/).filter(Boolean).filter((path) => !approvedPdfs.has(path));
     if (unexpectedPdfs.length) throw new Error(`发布已停止：暂存区包含未选择公开的 PDF。\n${unexpectedPdfs.join("\n")}`);
     const { stdout: stagedPathsOutput } = await git(["-c", "core.quotepath=false", "diff", "--cached", "--name-only", "-z"]);
@@ -1561,10 +1575,12 @@ function validMutationOrigin(request) {
 }
 
 async function serveStatic(request, response, pathname) {
-  const requested = pathname === "/" ? "/index.html" : pathname;
+  const readerAsset = pathname.startsWith("/reader-assets/");
+  const staticRoot = readerAsset ? resolve(repositoryRoot,"assets","reader") : publicDirectory;
+  const requested = readerAsset ? pathname.slice("/reader-assets".length) : pathname === "/" ? "/index.html" : pathname;
   const decoded = decodeURIComponent(requested);
-  const filePath = normalize(resolve(publicDirectory, `.${decoded}`));
-  if (filePath !== publicDirectory && !filePath.startsWith(`${publicDirectory}${sep}`)) {
+  const filePath = normalize(resolve(staticRoot, `.${decoded}`));
+  if (filePath !== staticRoot && !filePath.startsWith(`${staticRoot}${sep}`)) {
     errorResponse(response, 404, "文件不存在。");
     return;
   }
@@ -1574,7 +1590,7 @@ async function serveStatic(request, response, pathname) {
     const body = await readFile(filePath);
     response.writeHead(200, {
       "Cache-Control": "no-store",
-      "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https://lytcnaorevision2018.github.io; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "Content-Security-Policy": "default-src 'self'; img-src 'self' data: https:; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
       "Content-Type": mimeTypes[extname(filePath).toLowerCase()] || "application/octet-stream",
       "Content-Length": body.length,
       "Referrer-Policy": "no-referrer",
@@ -1629,6 +1645,13 @@ async function handleApi(request, response, pathname) {
   }
   if (!["GET", "HEAD"].includes(request.method) && !validMutationOrigin(request)) {
     errorResponse(response, 403, "请求来源不受信任。");
+    return;
+  }
+
+  if (request.method === "POST" && pathname === "/api/render-body") {
+    const body = await readBody(request);
+    try { jsonResponse(response,200,{ok:true,...await renderBody(body.body,body.bodyFormat || "markdown")}); }
+    catch(error) { throw clientError(error.message,422); }
     return;
   }
 
@@ -1744,6 +1767,8 @@ async function handleApi(request, response, pathname) {
 
   if (request.method === "POST" && pathname === "/api/talk-document") {
     const body = await readBody(request);
+    if(!readingSections.includes(body.sectionKey || "talks") || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(body.itemId || "")) throw clientError("附件所属栏目或条目不正确。");
+    body.itemId = documentOwner(body.sectionKey || "talks",body.itemId);
     const result = await enqueue(async () => {
       const current = await readWorkingContent();
       if (body.baseRevision && current.revision !== body.baseRevision) {
@@ -1776,6 +1801,8 @@ async function handleApi(request, response, pathname) {
 
   if (request.method === "POST" && pathname === "/api/talk-document/remove") {
     const body = await readBody(request);
+    if(!readingSections.includes(body.sectionKey || "talks") || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(body.itemId || "")) throw clientError("附件所属栏目或条目不正确。");
+    body.itemId = documentOwner(body.sectionKey || "talks",body.itemId);
     if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(body.itemId || "")) throw clientError("讲座条目 ID 不合法。");
     if (!/^doc-[a-f0-9]{20}$/.test(body.documentId || "")) throw clientError("讲义版本 ID 不合法。");
     await enqueue(async () => {
@@ -1785,7 +1812,7 @@ async function handleApi(request, response, pathname) {
         error.statusCode = 409;
         throw error;
       }
-      const inUse = (current.content.talks || []).some((talk) => talkDocumentFiles(talk).some((file) => {
+      const inUse = documentItems(current.content).some((talk) => talkDocumentFiles(talk).some((file) => {
         const parsed = parseTalkDocumentFile(file);
         return parsed?.itemId === body.itemId && parsed.documentId === body.documentId;
       }));

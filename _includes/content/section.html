@@ -9,11 +9,25 @@
       {% assign more_text = site.data.site_content.website.text.home.more | default: site.data.website_text.home.more %}
       {% if include.href and more_text.visible %}<a class="profile-section__more" href="{{ include.href }}">{{ more_text.label | escape }}</a>{% endif %}
     </div>
-    <div class="content-list">
-      {% assign item_limit = include.limit | default: items.size %}
-      {% for item in items limit:item_limit %}
-        {% include content/entry.html item=item show_document=include.show_documents %}
+    {% if include.id == "awards" or include.id == "cv-awards" %}
+      {% include content/award-entries.html items=items limit=include.limit %}
+    {% elsif include.grouped %}
+      {% assign groups = items | group_by: "course" %}
+      <div class="reading-directory{% if include.id == 'outsideResearch' %} blog-feed{% endif %}">
+      {% for group in groups %}
+        {% if group.name != blank %}<h3 class="directory-group">{{ group.name | escape }}</h3>{% endif %}
+        <div class="content-list">
+        {% for item in group.items %}{% include content/entry.html item=item section_key=include.id %}{% endfor %}
+        </div>
       {% endfor %}
-    </div>
+      </div>
+    {% else %}
+      <div class="content-list">
+        {% assign item_limit = include.limit | default: items.size %}
+        {% for item in items limit:item_limit %}
+          {% include content/entry.html item=item section_key=include.id show_document=include.show_documents %}
+        {% endfor %}
+      </div>
+    {% endif %}
   </section>
 {% endif %}

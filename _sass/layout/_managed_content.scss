@@ -414,3 +414,37 @@ html[data-theme="dark"] {
     break-inside: avoid;
   }
 }
+
+/* Long-form reading keeps the site's existing Chinese text stack. */
+.reading-page { max-width: 76ch; margin: 0 auto; }
+.reading-back { display: inline-block; margin: .25rem 0 1.5rem; font-size: .95rem; }
+.reading-meta { color: var(--managed-secondary-color, #495861); font-size: .95rem; }
+.reading-lead { border-left: 3px solid var(--global-link-color); padding-left: 1.2rem; line-height: 1.9; }
+.reading-toc { margin: 2rem 0; padding: 1.2rem 1.5rem; border: 1px solid var(--global-border-color); border-radius: .35rem; }
+.reading-toc ol { margin-bottom: 0; padding-left: 1.3rem; }
+.reading-toc li { line-height: 1.9; }
+.reading-body { font-size: 1rem; line-height: 1.95; overflow-wrap: anywhere; }
+.reading-body h1, .reading-body h2, .reading-body h3 { line-height: 1.5; scroll-margin-top: 5rem; margin-top: 2.25rem; }
+.reading-body p, .reading-body li { font-size: inherit; }
+.reading-body pre { overflow-x: auto; white-space: pre; padding: 1rem; }
+.reading-body table { display: block; max-width: 100%; overflow-x: auto; font-size: .95rem; }
+.reading-body th, .reading-body td { padding: .65rem .9rem; }
+.reading-body img { max-width: 100%; height: auto; }
+.reading-body .katex-display { overflow-x: auto; overflow-y: hidden; padding: .4rem 0; }
+.reading-body .katex { font-size: 1.12em; }
+.reading-resources { display: flex; flex-wrap: wrap; gap: .7rem; padding: 1.5rem 0; margin-top: 2rem; border-top: 1px solid var(--global-border-color); }
+.reading-resources a { padding: .5rem .8rem; border: 1px solid var(--global-border-color); border-radius: .25rem; }
+.directory-group { margin-top: 2rem; padding-bottom: .6rem; border-bottom: 2px solid var(--global-link-color); }
+.blog-feed .content-entry { border-left: 3px solid var(--global-border-color); border-radius: 0; padding-left: 1.5rem; }
+.blog-feed .content-entry__date { font-variant-numeric: tabular-nums; }
+.content-entry__title a { color: inherit; text-decoration: none; }
+.content-entry__title a:hover { color: var(--global-link-color); text-decoration: underline; }
+.content-entry__read { margin: 1rem 0 0; font-size: .95rem; }
+.resource-type { margin-left: .45em; font-size: .8em; opacity: .85; }
+.award-group { margin: 1.5rem 0 2.5rem; }
+.award-group > h3 { border-bottom: 2px solid var(--global-border-color); padding-bottom: .6rem; }
+@media (max-width: 600px) {
+  .reading-body { font-size: 1rem; line-height: 1.9; }
+  .reading-toc { padding: 1rem; }
+  .reading-body th, .reading-body td { padding: .5rem; }
+}

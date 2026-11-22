@@ -9,4 +9,4 @@ redirect_from:
 ---
 {% assign data = site.data.site_content %}
 {% include content/page-intro.html key="experiences" %}
-{% include content/section.html id="experiences" title="全部经历" items=data.experiences %}
+{% include content/section.html id="experiences" title="全部经历" items=data.experiences grouped=true %}

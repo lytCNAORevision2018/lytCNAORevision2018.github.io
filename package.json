@@ -11,7 +11,9 @@
     "theme",
     "minimal"
   ],
-  "contributors": ["Yutong Li"],
+  "contributors": [
+    "Yutong Li"
+  ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/lytCNAORevision2018/lytCNAORevision2018.github.io/issues"
@@ -21,17 +23,22 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
+    "entities": "8.1.0",
     "fitvids": "^2.1.1",
     "jquery": "^3.7.1",
     "jquery-smooth-scroll": "^2.2.0",
-    "plotly.js-dist-min": "^3.3.0"
+    "katex": "0.19.1",
+    "markdown-it": "15.0.3",
+    "plotly.js-dist-min": "^3.3.0",
+    "sanitize-html": "2.18.2"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "onchange": "^7.1.0",
     "uglify-js": "^3.17.4"
   },
   "scripts": {
-    "test": "node scripts/test-content.mjs && node scripts/test-site-manager.mjs",
+    "test": "node scripts/test-reading.mjs && node scripts/test-content.mjs && node scripts/test-site-manager.mjs",
     "test:content": "node scripts/test-content.mjs",
     "test:site-manager": "node scripts/test-site-manager.mjs",
     "validate:content": "node scripts/validate-content.mjs",
@@ -39,6 +46,8 @@
     "audit:site": "node scripts/audit-site.mjs --site _site",
     "uglify": "uglifyjs node_modules/jquery/dist/jquery.min.js node_modules/fitvids/dist/fitvids.min.js node_modules/jquery-smooth-scroll/jquery.smooth-scroll.min.js node_modules/plotly.js-dist-min/plotly.min.js assets/js/plugins/jquery.greedy-navigation.js assets/js/_main.js -c -m -o assets/js/main.min.js",
     "watch:js": "onchange \"assets/js/**/*.js\" -e \"assets/js/main.min.js\" -- npm run build:js",
-    "build:js": "npm run uglify"
+    "build:js": "npm run uglify",
+    "test:reading": "node scripts/test-reading.mjs",
+    "build:reader": "node scripts/build-reader.mjs"
   }
 }

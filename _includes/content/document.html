@@ -1,0 +1,22 @@
+{% assign item = include.item %}
+  {% if item.documentMode == "pdf" and item.documentPdf != blank %}
+    <details class="talk-document talk-document--pdf">
+      <summary>在线查看附件（PDF）</summary>
+      <p class="talk-document__actions"><a href="{{ item.documentPdf | escape }}" target="_blank" rel="noopener noreferrer">打开 PDF</a> · <a href="{{ item.documentPdf | escape }}" download>下载 PDF</a></p>
+      <iframe class="talk-document__pdf" src="{{ item.documentPdf | escape }}" title="{{ item.title | escape }}附件" loading="lazy"></iframe>
+    </details>
+  {% elsif item.documentPages and item.documentPages.size > 0 %}
+    <details class="talk-document">
+      <summary>在线查看附件（{{ item.documentPages.size }} 页）</summary>
+      {% assign talk_notice = site.data.site_content.website.text.misc.talkNotice | default: site.data.website_text.misc.talkNotice %}
+      {% if talk_notice.visible %}<p class="talk-document__notice">{{ talk_notice.label | escape }}</p>{% endif %}
+      <div class="talk-document__pages">
+        {% for page in item.documentPages %}
+          <figure>
+            <img src="{{ page | relative_url }}" alt="{{ item.title | escape }} - 第 {{ forloop.index }} 页" loading="lazy" draggable="false" />
+            <figcaption>第 {{ forloop.index }} 页</figcaption>
+          </figure>
+        {% endfor %}
+      </div>
+    </details>
+  {% endif %}

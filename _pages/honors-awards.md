@@ -8,4 +8,4 @@ redirect_from:
 ---
 {% assign data = site.data.site_content %}
 {% include content/page-intro.html key="awards" %}
-{% include content/section.html id="awards" title="全部荣誉" items=data.awards %}
+{% include content/section.html id="awards" title="荣誉与奖项" items=data.awards %}

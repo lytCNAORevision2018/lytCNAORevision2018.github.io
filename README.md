@@ -50,3 +50,5 @@ node scripts/audit-site.mjs --site _site
 ```
 
 前四项只需要 Node.js 和 Git；管理器集成测试会在系统临时目录创建隔离工作树、本地 bare origin 和随机端口，不连接真实仓库。Jekyll 本地构建还需要 Ruby、Bundler 和 `bundle install` 安装的依赖；未配置 Ruby 环境时，应至少完成前四项，并以 GitHub Actions 的构建审计结果为准。
+
+课程、实践、博客、LaTeX 网页阅读和链接设置：[课程博客与LaTeX使用说明.md](课程博客与LaTeX使用说明.md)。

@@ -78,7 +78,7 @@ for (const url of [
     tags: [],
     links: [{ label: "材料", url }]
   });
-  expectError(content, /不允许直接指向 PDF/);
+  assert.deepEqual(validateContent(content),[], "明确配置的外部 PDF 链接应当允许");
 }
 
 {
@@ -125,7 +125,7 @@ for (const url of [
     links: [],
     documentPages: ["/images/talk-documents/project-with-document/doc-0123456789abcdefabcd/page-001.jpg"]
   });
-  expectError(content, /PDF 仅限“分享与讲座”栏目/);
+  expectError(content, /不安全的讲义页路径/);
 }
 
 {

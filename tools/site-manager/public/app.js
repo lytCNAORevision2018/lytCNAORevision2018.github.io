@@ -1,4 +1,5 @@
 import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
+import { identifyLink, linkKinds, awardCategory } from "./content-options.mjs";
 
 (() => {
   "use strict";
@@ -369,16 +370,19 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
           <button class="button button--primary" type="button" data-add-item>新增${escapeHtml(definition.singular)}</button>
         </div>
       </div>
+      ${key === "awards" ? `<div class="award-filters" aria-label="荣誉与奖项分类"><button type="button" class="button button--secondary" data-award-filter="all" aria-pressed="${!state.awardFilter || state.awardFilter === "all"}">全部</button><button type="button" class="button button--secondary" data-award-filter="honor" aria-pressed="${state.awardFilter === "honor"}">荣誉称号</button><button type="button" class="button button--secondary" data-award-filter="award" aria-pressed="${state.awardFilter === "award"}">奖项与奖学金</button></div>` : ""}
       ${items.length === 0 ? `<div class="empty-state">当前没有${escapeHtml(definition.label)}条目。</div>` : `
         <div class="entry-list">
           ${items.map((item, index) => `
-            <article class="entry-row">
+            <article class="entry-row"${key === "awards" && state.awardFilter && state.awardFilter !== "all" && awardCategory(item) !== state.awardFilter ? " hidden" : ""}>
               <div>
                 <h2>${escapeHtml(item.title)}</h2>
                 ${item.summary ? `<p>${escapeHtml(item.summary)}</p>` : ""}
                 <div class="entry-flags">
                   <span class="entry-flag ${item.published ? "entry-flag--published" : ""}">${item.published ? "公开" : "本地草稿"}</span>
                   ${item.featured ? '<span class="entry-flag">首页展示</span>' : ""}
+                  ${key === "awards" ? `<span class="entry-flag">${awardCategory(item) === "honor" ? "荣誉称号" : "奖项 / 奖学金"}</span>` : ""}
+                  ${item.course ? `<span class="entry-flag">${escapeHtml(item.course)}</span>` : ""}
                   ${item.period || item.date ? `<span class="entry-flag">${escapeHtml(item.period || item.date)}</span>` : ""}
                 </div>
               </div>
@@ -426,6 +430,7 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
       <div class="link-row" data-link-index="${index}">
         <label class="field"><span>名称</span><input name="link-label" type="text" value="${escapeHtml(link.label)}" placeholder="例如：项目主页"></label>
         <label class="field"><span>地址</span><input name="link-url" type="text" inputmode="url" value="${escapeHtml(link.url)}" placeholder="https://... 或 /站内页面/"></label>
+        <label class="field link-type"><span>类型 <small data-link-detected>${escapeHtml(identifyLink(link.url,link.kind || "auto").label)}</small></span><select name="link-kind">${Object.entries(linkKinds).map(([kind,label])=>`<option value="${kind}"${(link.kind || "auto") === kind ? " selected" : ""}>${label}</option>`).join("")}</select></label>
         <button class="icon-button" type="button" data-remove-link aria-label="删除链接">×</button>
       </div>
     `).join("");
@@ -433,6 +438,12 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
 
   function itemField(field, item) {
     const value = item[field.name] ?? "";
+    if (field.type === "select") {
+      const selected = item[field.name] ?? (field.name === "category" ? awardCategory(item) : Object.keys(field.options)[0]);
+      return `<label class="field"><span>${escapeHtml(field.label)}</span><select name="${field.name}">${Object.entries(field.options).map(([key,label])=>`<option value="${key}"${selected === key ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}</select></label>`;
+    }
+    if (field.type === "boolean") return `<label class="toggle field--wide"><input name="${field.name}" type="checkbox"${value !== false ? " checked" : ""}>${escapeHtml(field.label)}</label>`;
+    if (field.type === "body") return `<section class="body-editor field--wide"><label class="field"><span>${escapeHtml(field.label)}</span><textarea name="body" id="body-source" maxlength="200000" rows="16" placeholder="## 第一讲&#10;正文可插入 $x^2$、独立公式、表格和资料链接。">${escapeHtml(value)}</textarea></label><div class="body-actions"><label class="button button--secondary">导入 .tex / .md<input id="body-import" type="file" accept=".tex,.md,.markdown,.txt" hidden></label><button class="button button--secondary" type="button" data-preview-body>检查阅读效果</button><button class="button button--quiet" type="button" data-body-template>插入课程 / 博客模板</button></div><p class="field-help">Markdown 支持标题、表格、代码与 LaTeX 公式。LaTeX 可导入单个 .tex；依赖外部文件、特殊宏包、TikZ 图形的工程请同时提供 PDF 或原网页链接。保存草稿会保留源码；发布独立页前会验证转换。</p><p id="body-preview-status" role="status" class="field-help"></p><div id="body-preview" class="reading-body" hidden></div></section>`;
     if (field.type === "textarea") {
       return `<label class="field field--wide"><span>${escapeHtml(field.label)}</span><textarea name="${escapeHtml(field.name)}"${field.required ? " required" : ""} placeholder="${escapeHtml(field.placeholder || "")}">${escapeHtml(value)}</textarea></label>`;
     }
@@ -452,10 +463,10 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
         <label class="field"><span>公开展示方式</span><select id="talk-document-mode"><option value="images">逐页图片</option><option value="pdf">原 PDF（可打开、下载）</option></select></label>
         <div class="talk-pdf-actions">
           <label id="talk-pdf-upload-label" class="button button--secondary"><span id="talk-pdf-upload-text">选择 PDF</span><input id="talk-pdf-upload" type="file" accept="application/pdf,.pdf" hidden></label>
-          <button class="button button--quiet button--danger" type="button" data-remove-talk-pdf${pages.length ? "" : " hidden"}>移除讲义</button>
+          <button class="button button--quiet button--danger" type="button" data-remove-talk-pdf${pages.length ? "" : " hidden"}>移除附件</button>
         </div>
         <p id="talk-pdf-status" class="field-help"></p>
-        <label id="talk-pdf-confirm-row" class="talk-pdf-confirm" hidden><input id="talk-pdf-confirm" type="checkbox"><span id="talk-pdf-confirm-text">我已检查讲义内容和版式</span></label>
+        <label id="talk-pdf-confirm-row" class="talk-pdf-confirm" hidden><input id="talk-pdf-confirm" type="checkbox"><span id="talk-pdf-confirm-text">我已检查附件内容和版式</span></label>
         <div id="talk-pdf-preview" class="talk-pdf-preview"></div>
       </div>`;
     }
@@ -499,14 +510,16 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
     if (item.featured) item.published = true;
     for (const field of definition.fields) {
       if (field.type === "links" || field.type === "talkPdf") continue;
-      const raw = String(formData.get(field.name) || "").trim();
+      if (field.type === "boolean") { item[field.name] = formData.get(field.name) === "on"; continue; }
+      const raw = field.type === "body" ? String(formData.get(field.name) || "") : String(formData.get(field.name) || "").trim();
       if (field.type === "lines") item[field.name] = raw ? raw.split(/\r?\n/).map((value) => value.trim()).filter(Boolean) : [];
       else if (field.type === "tags") item[field.name] = raw ? [...new Set(raw.split(/[，,]/).map((value) => value.trim()).filter(Boolean))] : [];
       else item[field.name] = raw;
     }
     item.links = [...itemFormFields.querySelectorAll(".link-row")].map((row) => ({
       label: row.querySelector('[name="link-label"]').value.trim(),
-      url: row.querySelector('[name="link-url"]').value.trim()
+      url: row.querySelector('[name="link-url"]').value.trim(),
+      kind: row.querySelector('[name="link-kind"]').value
     })).filter((link) => link.label || link.url);
     item.highlights ||= [];
     item.tags ||= [];
@@ -529,7 +542,7 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
       const parts = page.replace(/^\/images\/talk-documents\//, "").split("/");
       if (parts.length !== 3) return "";
       const previewUrl = `/preview/talk-documents/${parts.map(encodeURIComponent).join("/")}?token=${encodeURIComponent(token)}`;
-      return `<figure><img src="${previewUrl}" alt="讲义第 ${index + 1} 页预览" loading="lazy" draggable="false"><figcaption>第 ${index + 1} 页</figcaption></figure>`;
+      return `<figure><img src="${previewUrl}" alt="附件第 ${index + 1} 页预览" loading="lazy" draggable="false"><figcaption>第 ${index + 1} 页</figcaption></figure>`;
     }).join("");
   }
 
@@ -592,6 +605,7 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
       method: "POST",
       body: JSON.stringify({
         itemId: pending.itemId,
+        sectionKey: pending.sectionKey,
         documentId: pending.documentId,
         baseRevision
       })
@@ -634,12 +648,13 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
         method: "POST",
         body: JSON.stringify({
           itemId,
+          sectionKey: editing.sectionKey,
           mode,
           ...payloadSource,
           baseRevision
         })
       });
-      const pending = { itemId, documentId: payload.documentId };
+      const pending = { itemId, sectionKey: editing.sectionKey, documentId: payload.documentId };
       if (!state.editing || state.editing.sessionId !== sessionId) {
         await discardPendingTalkDocument(pending, baseRevision).catch(() => undefined);
         return;
@@ -663,6 +678,44 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
     } finally {
       if (state.editing?.sessionId === sessionId) { setItemDialogBusy(false); updateTalkPdfControls(); }
     }
+  }
+
+  async function previewBody() {
+    if (!state.editing || state.editing.uploading) return;
+    const session = state.editing.sessionId;
+    const item = collectItem();
+    const status = document.querySelector("#body-preview-status");
+    const target = document.querySelector("#body-preview");
+    status.textContent = "正在检查正文、公式和链接……";
+    target.hidden = true;
+    setItemDialogBusy(true);
+    try {
+      const result = await api("/api/render-body",{method:"POST",body:JSON.stringify({body:item.body || "",bodyFormat:item.bodyFormat || "markdown"})});
+      if (state.editing?.sessionId !== session) return;
+      target.innerHTML = result.html;
+      target.hidden = false;
+      status.textContent = `阅读预览已生成，${result.toc.length} 个标题。请检查正文和公式是否完整。`;
+    } catch(error) { status.textContent = error.message; showToast(error.message,"error"); }
+    finally { if(state.editing?.sessionId === session)setItemDialogBusy(false); }
+  }
+
+  async function importBody(file) {
+    if(!file || !state.editing || state.editing.uploading)return;
+    if(file.size > 800000){showToast("源码文件最多 800 KB。","error");return;}
+    const session = state.editing.sessionId;
+    const source = document.querySelector("#body-source");
+    if(source.value.trim() && !window.confirm("导入将替换当前正文。需要继续吗？"))return;
+    setItemDialogBusy(true);
+    try {
+      const body = await file.text();
+      if(state.editing?.sessionId !== session)return;
+      if(body.includes("\u0000") || body.includes("\ufffd") || body.length > 200000)throw new Error("请使用 UTF-8 编码的文本文件，正文最多 200000 个字符。");
+      source.value = body;
+      itemForm.elements.bodyFormat.value = /\.tex$/i.test(file.name) ? "latex" : "markdown";
+      document.querySelector("#body-preview").hidden = true;
+      document.querySelector("#body-preview-status").textContent = "源码已导入，请点击“检查阅读效果”。";
+    } catch(error){showToast(error.message,"error");}
+    finally{if(state.editing?.sessionId === session)setItemDialogBusy(false);}
   }
 
   async function changeTalkDocumentMode(mode) {
@@ -696,16 +749,16 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
       if (state.editing?.sessionId === sessionId) setItemDialogBusy(false);
     }
     const status = document.querySelector("#talk-pdf-status");
-    if (status) status.textContent = "讲义已移除；保存条目并发布后，云端文件才会删除。";
+    if (status) status.textContent = "附件已移除；保存条目并发布后，云端文件才会删除。";
     updateTalkPdfControls();
-    showToast("讲义已从当前条目移除。");
+    showToast("附件已从当前条目移除。");
   }
 
   async function closeItemDialog() {
     const editing = state.editing;
     if (!editing) return;
     if (editing.uploading) {
-      showToast("讲义仍在处理，请等待完成后再关闭。", "error");
+      showToast("附件仍在处理，请等待完成后再关闭。", "error");
       return;
     }
     if (editing.pendingDocument) {
@@ -1003,6 +1056,8 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
 
   editor.addEventListener("click", (event) => {
     if (state.busy) return;
+    const awardFilter = event.target.closest("[data-award-filter]");
+    if(awardFilter) { state.awardFilter = awardFilter.dataset.awardFilter; renderSection("awards"); return; }
     if (event.target.closest("[data-remove-website-avatar]")) {
       removeAvatar("website");
       return;
@@ -1051,6 +1106,15 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
   });
 
   itemForm.addEventListener("click", (event) => {
+    if (state.editing?.uploading) { event.preventDefault(); return; }
+    if(event.target.closest("[data-preview-body]")) previewBody();
+    if(event.target.closest("[data-body-template]")) {
+      const source = document.querySelector("#body-source");
+      if(source.value.trim() && !window.confirm("模板将替换当前正文。需要继续吗？"))return;
+      itemForm.elements.bodyFormat.value = "markdown";
+      source.value = state.editing.sectionKey === "outsideResearch" ? "## 从这里开始\n\n记录今天的想法。\n\n## 片段\n\n继续写下你的故事。" : "## 概览\n\n课程目标、实践背景或专题说明。\n\n## 内容安排\n\n| 讲次 | 主题 | 资料 |\n| --- | --- | --- |\n| 01 | 基础概念 | 在此填写资料链接 |\n\n## 笔记与推导\n\n行内公式 $E=mc^2$。\n\n$$\n\\int_0^1 x^2\\,dx=\\frac{1}{3}\n$$\n\n## 参考资料\n\n在下方相关链接中填写 arXiv、课程主页、代码或 PDF。";
+      document.querySelector("#body-preview").hidden = true;
+    }
     if (event.target.closest("[data-close-dialog]")) {
       event.preventDefault();
       closeItemDialog().catch((error) => showToast(error.message, "error"));
@@ -1070,7 +1134,14 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
     }
   });
 
+  itemForm.addEventListener("input", (event) => {
+    const row = event.target.closest(".link-row");
+    if(row) row.querySelector("[data-link-detected]").textContent = identifyLink(row.querySelector('[name="link-url"]').value,row.querySelector('[name="link-kind"]').value).label;
+    if(event.target.name === "body" || event.target.name === "bodyFormat") { const preview=document.querySelector("#body-preview");if(preview)preview.hidden=true; }
+  });
+
   itemForm.addEventListener("change", (event) => {
+    if(event.target.id === "body-import") importBody(event.target.files[0]);
     if (event.target.name === "featured" && event.target.checked) {
       itemForm.elements.published.checked = true;
     }
@@ -1088,7 +1159,7 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
     const editing = state.editing;
     if (!editing || editing.uploading) return;
     if (editing.pendingDocument && !document.querySelector("#talk-pdf-confirm")?.checked) {
-      showToast("请检查讲义内容和版式，并勾选确认。", "error");
+      showToast("请检查附件内容和版式，并勾选确认。", "error");
       return;
     }
     const item = collectItem();
@@ -1100,12 +1171,9 @@ import { createItemId, normalizeLegacyItemIds } from "./item-ids.mjs";
       showToast("条目标题不能为空。", "error");
       return;
     }
+    if (item.readingMode === "external" && !item.links[0]?.url) { showToast("跳转阅读需要先填写第一个资料链接。","error"); return; }
     if (item.links.some((link) => !link.label || !link.url)) {
       showToast("每个链接都需要名称和地址。", "error");
-      return;
-    }
-    if (item.links.some((link) => /\.pdf(?:$|[/?#&=])|(?:[?&#](?:format|type|download|file|filename)=[^&#]*\bpdf\b)/i.test(link.url))) {
-      showToast("请在“分享与讲座”的讲义上传处添加 PDF，并选择原文件或图片展示方式。", "error");
       return;
     }
     if (item.links.some((link) => /^\/files\//i.test(link.url))) {

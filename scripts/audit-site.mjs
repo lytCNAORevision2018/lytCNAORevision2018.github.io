@@ -1,7 +1,9 @@
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import { dirname, extname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseTalkDocumentPdf, resolvedWebsiteProfile, talkDocumentFiles, validateContent } from "../tools/site-manager/lib/content.mjs";
+import { parseTalkDocumentPdf, resolvedWebsiteProfile, talkDocumentFiles, validateContent, documentItems } from "../tools/site-manager/lib/content.mjs";
+import { auditArticleFiles, articleFiles, renderBody } from "../tools/site-manager/lib/articles.mjs";
+import { readingSections, awardCategory } from "../tools/site-manager/public/content-options.mjs";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDirectory, "..");
@@ -16,19 +18,32 @@ const forbiddenTemplateAssets = new Set([
   "images/profile.png"
 ]);
 const errors = [];
+const allowedExternalLinks = new Set();
+
+async function collectReadingLinks(content) {
+  for(const key of readingSections) for(const item of content[key] || []) {
+    if(!item.published)continue;
+    for(const link of item.links || []) if(/^https?:\/\//.test(link.url || ""))allowedExternalLinks.add(link.url);
+    if(item.body && item.readingMode !== "external" && item.readingMode !== "summary") {
+      try { for(const url of (await renderBody(item.body,item.bodyFormat || "markdown")).links) { if(/^https?:\/\//.test(url))allowedExternalLinks.add(url); } }
+      catch(error){fail(`“${item.title}”正文：${error.message}`);}
+    }
+  }
+  for(const key of ["education","awards","skills"])for(const item of content[key] || [])for(const link of item.links || [])if(item.published && /^https?:\/\//.test(link.url || ""))allowedExternalLinks.add(link.url);
+}
 
 function fail(message) {
   errors.push(message);
 }
 
 function publicPdfPaths(content) {
-  return new Set((content.talks || []).filter((talk) => talk.published && talk.documentMode === "pdf" && parseTalkDocumentPdf(talk.documentPdf)?.itemId === talk.id).map((talk) => talk.documentPdf));
+  return new Set(documentItems(content).filter((talk) => talk.published && talk.documentMode === "pdf" && parseTalkDocumentPdf(talk.documentPdf)?.itemId === talk.documentOwner).map((talk) => talk.documentPdf));
 }
 
 function allowedPdfUrl(value, allowed) {
   try {
     const url = new URL(value, `${expectedOrigin}/`);
-    return url.origin === expectedOrigin && !url.search && allowed.has(url.pathname);
+    return (url.origin === expectedOrigin && !url.search && allowed.has(url.pathname)) || (url.origin !== expectedOrigin && allowedExternalLinks.has(value.replaceAll("&amp;","&")));
   } catch { return false; }
 }
 
@@ -40,7 +55,7 @@ async function auditPdfFile(path, root, allowed) {
 }
 
 async function auditTalkDocumentTree(root, content) {
-  const expected = new Set((content.talks || []).filter((talk) => talk.published).flatMap(talkDocumentFiles));
+  const expected = new Set(documentItems(content).filter((talk) => talk.published).flatMap(talkDocumentFiles));
   const files = await walk(resolve(root, "images", "talk-documents"), { ignore: new Set() });
   const actual = new Set(files.map((path) => `/${relative(root, path).replaceAll("\\", "/")}`));
   for (const file of expected) if (!actual.has(file)) fail(`公开讲义文件不存在：${file}`);
@@ -126,6 +141,7 @@ function contentLinks(content) {
 async function auditSource() {
   const contentPath = resolve(repositoryRoot, "_data", "site_content.json");
   const content = JSON.parse(await readFile(contentPath, "utf8"));
+  await collectReadingLinks(content);
   const allowedPdfs = publicPdfPaths(content);
   for (const message of validateContent(content)) fail(`内容数据：${message}`);
 
@@ -155,7 +171,7 @@ async function auditSource() {
     if (/name name|name@name\.com|github university|paper title number|teaching experience|skill 1|your name|lorem ipsum/i.test(text)) {
       fail(`${name} 仍包含模板占位信息。`);
     }
-    for (const match of text.matchAll(/(?:https?:\/\/|\/)[^\s"'<>]*\.pdf(?:[?#][^\s"'<>]*)?/gi)) {
+    for (const match of (name === "_data/site_content.json" ? "" : text).matchAll(/(?:https?:\/\/|\/)[^\s"'<>]*\.pdf(?:[?#][^\s"'<>]*)?/gi)) {
       if (!allowedPdfUrl(match[0], allowedPdfs)) fail(`${name} 含有未选择公开的 PDF 引用：${match[0]}`);
     }
     if (/\b(?:paperurl|slidesurl|bibtexurl)\b|Download (?:Paper|Slides|Bibtex)/i.test(text)) {
@@ -203,10 +219,25 @@ async function auditSource() {
     if (!(await exists(resolve(repositoryRoot, "images", websiteAvatar)))) fail(`网站独立头像文件不存在：images/${websiteAvatar}`);
   }
   await auditTalkDocumentTree(repositoryRoot, content);
+  try { for(const error of await auditArticleFiles(repositoryRoot,content))fail(error); }catch(error){fail(error.message);}
+  for(const key of readingSections)for(const item of content[key] || [])if(item.published && item.body && item.readingMode !== "external" && item.readingMode !== "summary") {
+    try { for(const url of (await renderBody(item.body,item.bodyFormat || "markdown")).links) {
+      if(!url.startsWith("/"))continue;
+      const pathname = url.split(/[?#]/)[0];
+      if(pathname.startsWith("/images/talk-documents/") && !documentItems(content).filter(i=>i.published).flatMap(talkDocumentFiles).includes(pathname))fail(`正文引用了未选择公开的附件：${pathname}`);
+      if(!permalinks.has(pathname) && !(await exists(resolve(repositoryRoot,pathname.slice(1)))))fail(`正文站内链接不存在：${url}`);
+    }}catch(error){fail(error.message);}
+  }
 }
 
 async function auditBuiltSite(siteDirectory) {
   const managedContent = JSON.parse(await readFile(resolve(repositoryRoot, "_data", "site_content.json"), "utf8"));
+  await collectReadingLinks(managedContent);
+  try {
+    const expected = await articleFiles(managedContent);
+    for(const file of await walk(resolve(siteDirectory,"reading"),{ignore:new Set()}))if(!expected.has(relative(resolve(siteDirectory,"reading"),file).replaceAll("\\","/")))fail(`成品存在未选择公开的独立内容页：${file}`);
+    for(const path of expected.keys())if(!(await exists(resolve(siteDirectory,"reading",path))))fail(`成品缺少独立内容页：reading/${path}`);
+  }catch(error){fail(error.message);}
   const allowedPdfs = publicPdfPaths(managedContent);
   await auditTalkDocumentTree(siteDirectory, managedContent);
   const files = await walk(siteDirectory, { ignore: new Set() });
@@ -219,6 +250,13 @@ async function auditBuiltSite(siteDirectory) {
   for (const path of htmlFiles) {
     const html = await readFile(path, "utf8");
     const name = relative(siteDirectory, path).replaceAll("\\", "/");
+    if(["/awards/","/cv/"].includes(documentUrlPath(siteDirectory,path))) {
+      const groups=[...html.matchAll(/<div class="award-group">([\s\S]*?)(?=<div class="award-group">|<\/section>)/g)];
+      const publishedAwards=managedContent.awards.filter(item=>item.published);
+      const expectedCounts=["honor","award"].map(category=>publishedAwards.filter(item=>awardCategory(item) === category).length).filter(Boolean);
+      const actualCounts=groups.map(group=>[...group[1].matchAll(/<article class="content-entry">/g)].length);
+      if(JSON.stringify(expectedCounts) !== JSON.stringify(actualCounts))fail(`${name} 的荣誉 / 奖项分组出现遗漏或重复：应为 ${expectedCounts}，实际 ${actualCounts}`);
+    }
     const isRedirect = /http-equiv=["']refresh["']/i.test(html);
     if (!isRedirect && !/<html\b[^>]*\blang=["']zh-CN["']/i.test(html)) fail(`${name} 缺少规范的 lang=zh-CN。`);
     if (!/<meta\b[^>]*charset=["']?utf-8/i.test(html)) fail(`${name} 缺少 UTF-8 charset。`);

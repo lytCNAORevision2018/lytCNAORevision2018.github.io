@@ -8,4 +8,4 @@ redirect_from:
 ---
 {% assign data = site.data.site_content %}
 {% include content/page-intro.html key="outsideResearch" %}
-{% include content/section.html id="outside" title="全部记录" items=data.outsideResearch %}
+{% include content/section.html id="outsideResearch" title="全部记录" items=data.outsideResearch grouped=true %}

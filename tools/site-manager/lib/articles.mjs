@@ -38,6 +38,8 @@ function execute(command, args, input) {
       windowsHide: true,
       stdio: ["pipe", "pipe", "pipe"],
     });
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
     let out = "",
       err = "",
       done = false;
@@ -339,7 +341,7 @@ export async function auditArticleFiles(root, content) {
   await walk(join(root, "reading"));
   for (const [path, html] of expected) {
     try {
-      if ((await readFile(join(root, "reading", path), "utf8")) !== html)
+      if ((await readFile(join(root, "reading", path), "utf8")).replaceAll("\r\n","\n") !== html.replaceAll("\r\n","\n"))
         errors.push(`独立内容页与正文源不一致：reading/${path}`);
     } catch {
       errors.push(`缺少独立内容页：reading/${path}`);

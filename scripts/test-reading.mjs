@@ -226,6 +226,8 @@ try {
   await syncArticleFiles(isolated, content);
   assert.deepEqual(await auditArticleFiles(isolated, content), []);
   const file = join(isolated, "reading", "notes/shared-id/index.html");
+  await writeFile(file,(await readFile(file,"utf8")).replaceAll("\n","\r\n"));
+  assert.deepEqual(await auditArticleFiles(isolated,content),[],"Windows 换行转换不得造成内容不一致误报");
   await writeFile(file, "unexpected");
   assert.ok(
     (await auditArticleFiles(isolated, content)).some((e) => /不一致/.test(e)),
